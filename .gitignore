@@ -1,0 +1,35 @@
+# ─── Node / Frontend ────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+# ─── Python / Backend ───────────────────────────────────────────────────────
+backend/venv/
+backend/.venv/
+backend/.env
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ─── OS & Editor ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ─── Test / Debug artifacts ─────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/

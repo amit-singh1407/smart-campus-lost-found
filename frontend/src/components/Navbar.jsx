@@ -1,0 +1,291 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Compass,
+  PlusCircle,
+  Search,
+  Bell,
+  User,
+  LogOut,
+  ShieldAlert,
+  Menu,
+  X,
+  Layers,
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+
+export const Navbar = () => {
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-slate-800 bg-slate-950/80 backdrop-blur-xl">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between gap-4">
+          {/* Logo & Campus Brand */}
+          <Link to="/" className="flex items-center gap-2.5 shrink-0 group">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 group-hover:scale-105 transition-transform">
+              <Compass className="w-5 h-5" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-base font-bold text-slate-100 tracking-tight flex items-center gap-1.5">
+                Smart Campus <span className="text-blue-400 font-semibold">Lost&Found</span>
+              </span>
+              <span className="text-[10px] text-slate-400 tracking-wider uppercase font-medium">
+                University Portal
+              </span>
+            </div>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-1">
+            <Link
+              to="/browse"
+              className="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors"
+            >
+              Browse Items
+            </Link>
+            {isAuthenticated && (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  to="/matches"
+                  className="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors"
+                >
+                  Matches
+                </Link>
+                <Link
+                  to="/my-reports"
+                  className="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors"
+                >
+                  My Reports
+                </Link>
+              </>
+            )}
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className="px-3.5 py-2 rounded-lg text-sm font-medium text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-colors flex items-center gap-1.5"
+              >
+                <ShieldAlert className="w-4 h-4" />
+                Admin Panel
+              </Link>
+            )}
+          </nav>
+
+          {/* Action CTAs */}
+          <div className="hidden md:flex items-center gap-3">
+            {isAuthenticated ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/report-lost"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/20 hover:bg-rose-500/20 transition"
+                >
+                  Report Lost
+                </Link>
+                <Link
+                  to="/report-found"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20 transition"
+                >
+                  Report Found
+                </Link>
+
+                {/* Notifications Link */}
+                <Link
+                  to="/notifications"
+                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition relative"
+                  title="Notifications"
+                >
+                  <Bell className="w-5 h-5" />
+                </Link>
+
+                {/* User Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                    className="flex items-center gap-2 p-1.5 pr-3 rounded-xl border border-slate-800 bg-slate-900 hover:border-slate-700 transition text-left"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-xs">
+                      {user?.name ? user.name[0].toUpperCase() : 'U'}
+                    </div>
+                    <span className="text-xs font-medium text-slate-200 max-w-[100px] truncate">
+                      {user?.name || 'Account'}
+                    </span>
+                  </button>
+
+                  {userDropdownOpen && (
+                    <div
+                      className="absolute right-0 mt-2 w-48 rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl p-1.5 z-50"
+                      onClick={() => setUserDropdownOpen(false)}
+                    >
+                      <div className="px-3 py-2 border-b border-slate-800 text-xs">
+                        <p className="font-semibold text-slate-200 truncate">{user?.name}</p>
+                        <p className="text-slate-500 truncate">{user?.email}</p>
+                      </div>
+                      <Link
+                        to="/profile"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-300 hover:bg-slate-800 hover:text-white"
+                      >
+                        <User className="w-4 h-4 text-slate-400" />
+                        Profile Settings
+                      </Link>
+                      <Link
+                        to="/claims"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-300 hover:bg-slate-800 hover:text-white"
+                      >
+                        <Layers className="w-4 h-4 text-slate-400" />
+                        My Claims
+                      </Link>
+                      <button
+                        onClick={logout}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-rose-400 hover:bg-rose-500/10 transition text-left"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/login"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800/60 transition"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/register"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-600/20 transition"
+                >
+                  Register
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile menu toggle */}
+          <div className="flex md:hidden items-center gap-2">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-slate-800 py-4 space-y-2">
+            <Link
+              to="/browse"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800"
+            >
+              Browse Items
+            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  to="/report-lost"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-sm text-rose-400 hover:bg-slate-800"
+                >
+                  Report Lost Item
+                </Link>
+                <Link
+                  to="/report-found"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-sm text-emerald-400 hover:bg-slate-800"
+                >
+                  Report Found Item
+                </Link>
+                <Link
+                  to="/matches"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800"
+                >
+                  Smart Matches
+                </Link>
+                <Link
+                  to="/claims"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800"
+                >
+                  Claims
+                </Link>
+                <Link
+                  to="/notifications"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800"
+                >
+                  Notifications
+                </Link>
+                <Link
+                  to="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800"
+                >
+                  Profile
+                </Link>
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block px-3 py-2 rounded-lg text-sm text-amber-400 hover:bg-slate-800"
+                  >
+                    Admin Portal
+                  </Link>
+                )}
+                <button
+                  onClick={() => {
+                    logout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-lg text-sm text-rose-400 hover:bg-slate-800"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <div className="pt-2 flex flex-col gap-2">
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full text-center py-2 rounded-xl text-sm font-semibold border border-slate-800 text-slate-200"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full text-center py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white"
+                >
+                  Create Account
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </header>
+  );
+};
+
+export default Navbar;
