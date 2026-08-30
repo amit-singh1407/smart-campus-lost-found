@@ -81,7 +81,7 @@ export const LoginPage = () => {
                 <input
                   type="email"
                   required
-                  placeholder="student@campus.edu"
+                  placeholder="yourname@college.edu"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"

@@ -14,7 +14,7 @@ def send_verification_email(recipient_email: str, otp: str, name: str = "") -> b
     username = os.getenv("EMAIL_USERNAME", "")
     password = os.getenv("EMAIL_PASSWORD", "")
 
-    # Always log OTP to server output for instant local testing
+    # Always log OTP to server output for instant local testing / fallback
     print(f"\n=======================================================")
     print(f" [EMAIL OTP DISPATCH] -> {recipient_email}")
     print(f" OTP CODE: {otp}")
@@ -22,8 +22,9 @@ def send_verification_email(recipient_email: str, otp: str, name: str = "") -> b
     print(f"=======================================================\n")
 
     if not username or not password:
-        logger.info(f"SMTP credentials not fully set. OTP code is logged: {otp}")
-        return True
+        print("[EMAIL] WARNING: SMTP credentials not set. OTP only available in console above.")
+        logger.warning("SMTP credentials not fully configured. Email NOT sent.")
+        return True  # Fallback: OTP is readable from console
 
     try:
         msg = MIMEMultipart("alternative")
@@ -34,8 +35,8 @@ def send_verification_email(recipient_email: str, otp: str, name: str = "") -> b
         html_body = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #0b0f19; color: #f8fafc;">
             <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #60a5fa; margin: 0;">Smart Campus Lost & Found</h2>
-                <p style="color: #94a3b8; font-size: 14px;">Campus Verification Protocol</p>
+                <h2 style="color: #60a5fa; margin: 0;">Smart Campus Lost &amp; Found</h2>
+                <p style="color: #94a3b8; font-size: 14px;">Email Verification</p>
             </div>
             <div style="background-color: #1e293b; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
                 <p style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">Your 6-Digit One-Time Password:</p>
@@ -50,13 +51,36 @@ def send_verification_email(recipient_email: str, otp: str, name: str = "") -> b
 
         msg.attach(MIMEText(html_body, "html"))
 
-        with smtplib.SMTP(host, port, timeout=10) as server:
+        print(f"[EMAIL] Connecting to {host}:{port} as {username} ...")
+        with smtplib.SMTP(host, port, timeout=15) as server:
+            server.ehlo()
             server.starttls()
+            server.ehlo()
             server.login(username, password)
             server.send_message(msg)
 
+        print(f"[EMAIL] ✓ Verification email sent successfully to {recipient_email}")
         logger.info(f"Verification email sent successfully to {recipient_email}")
         return True
+
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"\n[EMAIL] ✗ SMTP AUTHENTICATION FAILED!")
+        print(f"[EMAIL]   Error: {e}")
+        print(f"[EMAIL]   Check your EMAIL_USERNAME and EMAIL_PASSWORD in .env")
+        print(f"[EMAIL]   For Gmail: use a 16-character App Password (not your regular password)")
+        print(f"[EMAIL]   Generate one at: https://myaccount.google.com/apppasswords")
+        print(f"[EMAIL]   OTP is still available in the console above.\n")
+        logger.error(f"SMTP auth failed: {e}")
+        return False  # Signal that email was NOT delivered
+
+    except smtplib.SMTPException as e:
+        print(f"\n[EMAIL] ✗ SMTP error: {e}")
+        print(f"[EMAIL]   OTP is still available in the console above.\n")
+        logger.error(f"SMTP error sending to {recipient_email}: {e}")
+        return False
+
     except Exception as e:
-        logger.error(f"Failed to send email via SMTP: {e}. (Console OTP is still valid).")
-        return True
+        print(f"\n[EMAIL] ✗ Unexpected error sending email: {e}")
+        print(f"[EMAIL]   OTP is still available in the console above.\n")
+        logger.error(f"Unexpected email error: {e}")
+        return False
