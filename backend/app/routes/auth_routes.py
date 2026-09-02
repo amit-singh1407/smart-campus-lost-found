@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify, g
+from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity, create_access_token
 from pydantic import ValidationError
 from app.models.schemas import (
     UserRegisterSchema,
@@ -125,3 +126,26 @@ def reset_password():
         return jsonify(result), result["status_code"]
     except ValidationError as err:
         return jsonify({"message": "Invalid reset payload", "errors": err.errors()}), 422
+
+
+@auth_bp.post("/refresh")
+@jwt_required(refresh=True)
+def refresh_token():
+    user_id = get_jwt_identity()
+    claims = get_jwt()
+    new_access_token = create_access_token(
+        identity=user_id,
+        additional_claims={
+            "id": user_id,
+            "email": claims.get("email"),
+            "role": claims.get("role", "USER"),
+            "name": claims.get("name", ""),
+        },
+    )
+    return jsonify({"access_token": new_access_token}), 200
+
+
+@auth_bp.post("/logout")
+def logout():
+    return jsonify({"message": "Successfully logged out"}), 200
+

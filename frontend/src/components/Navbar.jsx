@@ -129,6 +129,15 @@ export const Navbar = () => {
                         <p className="font-semibold text-slate-200 truncate">{user?.name}</p>
                         <p className="text-slate-500 truncate">{user?.email}</p>
                       </div>
+                      {isAdmin && (
+                        <Link
+                          to="/admin"
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-amber-400 hover:bg-amber-500/10 hover:text-amber-300"
+                        >
+                          <ShieldAlert className="w-4 h-4 text-amber-400" />
+                          Admin Console
+                        </Link>
+                      )}
                       <Link
                         to="/profile"
                         className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-300 hover:bg-slate-800 hover:text-white"
@@ -156,6 +165,14 @@ export const Navbar = () => {
               </div>
             ) : (
               <div className="flex items-center gap-2">
+                <Link
+                  to="/admin/login"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-amber-400/90 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/20 transition"
+                  title="Campus Staff & Security Admin Portal"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  <span>Admin</span>
+                </Link>
                 <Link
                   to="/login"
                   className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800/60 transition"
@@ -265,6 +282,14 @@ export const Navbar = () => {
               </>
             ) : (
               <div className="pt-2 flex flex-col gap-2">
+                <Link
+                  to="/admin/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full text-center py-2 rounded-xl text-sm font-semibold border border-amber-500/30 text-amber-400 bg-amber-500/10 flex items-center justify-center gap-1.5"
+                >
+                  <ShieldAlert className="w-4 h-4" />
+                  <span>Admin Portal Access</span>
+                </Link>
                 <Link
                   to="/login"
                   onClick={() => setMobileMenuOpen(false)}

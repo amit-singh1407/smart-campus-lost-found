@@ -51,20 +51,20 @@ def send_verification_email(recipient_email: str, otp: str, name: str = "") -> b
 
         msg.attach(MIMEText(html_body, "html"))
 
-        print(f"[EMAIL] Connecting to {host}:{port} as {username} ...")
-        with smtplib.SMTP(host, port, timeout=15) as server:
+        print(f"[EMAIL] Connecting to {host}:{port} as {username} ...", flush=True)
+        with smtplib.SMTP(host, port, timeout=5) as server:
             server.ehlo()
             server.starttls()
             server.ehlo()
             server.login(username, password)
             server.send_message(msg)
 
-        print(f"[EMAIL] ✓ Verification email sent successfully to {recipient_email}")
+        print(f"[EMAIL] [OK] Verification email sent successfully to {recipient_email}")
         logger.info(f"Verification email sent successfully to {recipient_email}")
         return True
 
     except smtplib.SMTPAuthenticationError as e:
-        print(f"\n[EMAIL] ✗ SMTP AUTHENTICATION FAILED!")
+        print(f"\n[EMAIL] [ERROR] SMTP AUTHENTICATION FAILED!")
         print(f"[EMAIL]   Error: {e}")
         print(f"[EMAIL]   Check your EMAIL_USERNAME and EMAIL_PASSWORD in .env")
         print(f"[EMAIL]   For Gmail: use a 16-character App Password (not your regular password)")
@@ -74,13 +74,13 @@ def send_verification_email(recipient_email: str, otp: str, name: str = "") -> b
         return False  # Signal that email was NOT delivered
 
     except smtplib.SMTPException as e:
-        print(f"\n[EMAIL] ✗ SMTP error: {e}")
+        print(f"\n[EMAIL] [ERROR] SMTP error: {e}")
         print(f"[EMAIL]   OTP is still available in the console above.\n")
         logger.error(f"SMTP error sending to {recipient_email}: {e}")
         return False
 
     except Exception as e:
-        print(f"\n[EMAIL] ✗ Unexpected error sending email: {e}")
+        print(f"\n[EMAIL] [ERROR] Unexpected error sending email: {e}")
         print(f"[EMAIL]   OTP is still available in the console above.\n")
         logger.error(f"Unexpected email error: {e}")
         return False

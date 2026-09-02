@@ -68,13 +68,46 @@ def run_tests():
     assert access_token is not None
     print("Received JWT token successfully.")
 
+    refresh_token = login_data.get("refresh_token")
+
     print("\n--- 6. Testing Authenticated /auth/me Endpoint ---")
     res = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"})
     print("/auth/me Status:", res.status_code, res.get_json())
     assert res.status_code == 200
     assert res.get_json()["user"]["email"] == test_email
 
-    print("\n--- 7. Testing Admin Authentication (/admin/login) ---")
+    print("\n--- 7. Testing Duplicate Student ID Prevention (Should be 409) ---")
+    dup_student_res = client.post("/api/v1/auth/register", json={
+        "name": "Imposter Student",
+        "email": "another.email@campus.edu",
+        "password": "Password123!",
+        "student_id": "CS-2026-881",
+    })
+    print("Duplicate Student ID Status:", dup_student_res.status_code, dup_student_res.get_json())
+    assert dup_student_res.status_code == 409
+
+    print("\n--- 8. Testing Duplicate Email Prevention (Should be 409) ---")
+    dup_email_res = client.post("/api/v1/auth/register", json={
+        "name": "Jane Student Copy",
+        "email": test_email,
+        "password": "Password123!",
+        "student_id": "DIFF-ID-999",
+    })
+    print("Duplicate Email Status:", dup_email_res.status_code, dup_email_res.get_json())
+    assert dup_email_res.status_code == 409
+
+    print("\n--- 9. Testing JWT Refresh Token Mechanism ---")
+    refresh_res = client.post("/api/v1/auth/refresh", headers={"Authorization": f"Bearer {refresh_token}"})
+    print("Token Refresh Status:", refresh_res.status_code, refresh_res.get_json())
+    assert refresh_res.status_code == 200
+    assert "access_token" in refresh_res.get_json()
+
+    print("\n--- 10. Testing Logout API ---")
+    logout_res = client.post("/api/v1/auth/logout")
+    print("Logout Status:", logout_res.status_code, logout_res.get_json())
+    assert logout_res.status_code == 200
+
+    print("\n--- 11. Testing Admin Authentication (/admin/login) ---")
     admin_login_res = client.post(
         "/api/v1/admin/login",
         json={"email": "admin@campus.edu", "password": "AdminPassword123!"}
@@ -84,18 +117,18 @@ def run_tests():
     assert admin_login_res.status_code == 200
     admin_token = admin_data["access_token"]
 
-    print("\n--- 8. Testing Protected Admin Stats with Admin Token ---")
+    print("\n--- 12. Testing Protected Admin Stats with Admin Token ---")
     stats_res = client.get("/api/v1/admin/stats", headers={"Authorization": f"Bearer {admin_token}"})
     print("Admin Stats Status:", stats_res.status_code, stats_res.get_json())
     assert stats_res.status_code == 200
 
-    print("\n--- 9. Testing Admin Protection: Normal User Token on Admin Route (Should be 403) ---")
+    print("\n--- 13. Testing Admin Protection: Normal User Token on Admin Route (Should be 403) ---")
     forbidden_res = client.get("/api/v1/admin/stats", headers={"Authorization": f"Bearer {access_token}"})
     print("Forbidden Access Status:", forbidden_res.status_code, forbidden_res.get_json())
     assert forbidden_res.status_code == 403
 
     print("\n==============================================")
-    print(" ALL PLAN 2 BACKEND AUTH & SECURITY TESTS PASSED! ")
+    print(" ALL BACKEND AUTH & SECURITY TESTS PASSED! ")
     print("==============================================")
 
 

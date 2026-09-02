@@ -75,6 +75,11 @@ def create_app():
     # Ensure Indexes on MongoDB Collections
     try:
         app.db.users.create_index("email", unique=True)
+        app.db.users.create_index(
+            [("student_id", 1)],
+            unique=True,
+            partialFilterExpression={"student_id": {"$gt": ""}},
+        )
         app.db.otp_verifications.create_index("email", unique=True)
         app.db.items.create_index([("title", "text"), ("description", "text"), ("location", "text"), ("brand", "text"), ("color", "text")])
         app.db.items.create_index("created_at")

@@ -116,6 +116,22 @@ export const AdminLoginPage = () => {
             </button>
           </form>
 
+          {/* Quick Demo Credentials Autofill */}
+          <div className="pt-3 flex items-center justify-between">
+            <span className="text-[11px] text-slate-400">Testing credentials:</span>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('admin@campus.edu');
+                setPassword('AdminPassword123!');
+                setError('');
+              }}
+              className="px-3 py-1 rounded-lg text-[11px] font-medium bg-amber-500/10 text-amber-300 border border-amber-500/20 hover:bg-amber-500/20 transition"
+            >
+              Fill Default Admin Credentials
+            </button>
+          </div>
+
           <div className="pt-4 border-t border-slate-800 text-center">
             <Link
               to="/login"

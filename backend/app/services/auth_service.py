@@ -21,9 +21,14 @@ class AuthService:
         db = current_app.db
         email = data["email"].strip().lower()
 
-        # Check existing user
+        # Check existing user email
         if db.users.find_one({"email": email}):
             return {"error": "An account with this campus email already exists.", "status_code": 409}
+
+        # Check duplicate student ID prevention
+        student_id = (data.get("student_id") or "").strip()
+        if student_id and db.users.find_one({"student_id": student_id}):
+            return {"error": "An account with this Student ID already exists.", "status_code": 409}
 
         # Argon2 hash password
         hashed = hash_password(data["password"])
@@ -32,7 +37,7 @@ class AuthService:
             "name": (data.get("name") or "").strip(),
             "email": email,
             "password_hash": hashed,
-            "student_id": (data.get("student_id") or "").strip(),
+            "student_id": student_id,
             "department": (data.get("department") or "").strip(),
             "phone": (data.get("phone") or "").strip(),
             "role": "USER",  # Strict default: normal registration is always USER
@@ -90,9 +95,17 @@ class AuthService:
         if datetime.now(timezone.utc) > exp_dt:
             return {"error": "Verification OTP has expired. Please request a new code.", "status_code": 400}
 
+        # Check OTP attempt limit (max 5 attempts)
+        current_attempts = record.get("attempts", 0)
+        if current_attempts >= 5:
+            db.otp_verifications.delete_one({"email": email})
+            return {"error": "Maximum verification attempts exceeded. Please request a new OTP code.", "status_code": 429}
+
         if record.get("otp") != otp:
+            new_attempts = current_attempts + 1
             db.otp_verifications.update_one({"email": email}, {"$inc": {"attempts": 1}})
-            return {"error": "Invalid verification code. Please try again.", "status_code": 400}
+            remaining = max(0, 5 - new_attempts)
+            return {"error": f"Invalid verification code. {remaining} attempt(s) remaining.", "status_code": 400}
 
         # Successful verification -> activate account
         db.users.update_one(
