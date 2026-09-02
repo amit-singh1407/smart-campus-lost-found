@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Compass, Mail, Lock, AlertCircle, ArrowRight, Loader2, ShieldCheck, UserCheck, KeyRound } from 'lucide-react';
+import { Compass, Mail, Lock, AlertCircle, ArrowRight, Loader2, ShieldCheck, UserCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
 
@@ -17,19 +17,6 @@ export const LoginPage = () => {
 
   const from = location.state?.from?.pathname || '/dashboard';
 
-  const handleFillAdminDemo = () => {
-    setIsAdminMode(true);
-    setEmail('admin@campus.edu');
-    setPassword('AdminPassword123!');
-    setError('');
-  };
-
-  const handleFillStudentDemo = () => {
-    setIsAdminMode(false);
-    setEmail('test.student@campus.edu');
-    setPassword('SecurePassword123!');
-    setError('');
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -189,30 +176,6 @@ export const LoginPage = () => {
             </button>
           </form>
 
-          {/* Quick Auto-fill Demo Credentials */}
-          <div className="mt-5 pt-4 border-t border-slate-800/80">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                <KeyRound className="w-3.5 h-3.5" /> Demo Login:
-              </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleFillAdminDemo}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-amber-500/10 text-amber-300 border border-amber-500/20 hover:bg-amber-500/20 transition"
-                >
-                  Fill Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={handleFillStudentDemo}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-blue-500/10 text-blue-300 border border-blue-500/20 hover:bg-blue-500/20 transition"
-                >
-                  Fill Student
-                </button>
-              </div>
-            </div>
-          </div>
 
           <div className="mt-5 pt-4 border-t border-slate-800/80 text-center">
             <p className="text-xs text-slate-400">
