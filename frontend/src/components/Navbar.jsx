@@ -41,12 +41,6 @@ export const Navbar = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
-            <Link
-              to="/browse"
-              className="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors"
-            >
-              Browse Items
-            </Link>
             {isAuthenticated && (
               <>
                 <Link
@@ -203,13 +197,6 @@ export const Navbar = () => {
         {/* Mobile dropdown */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-slate-800 py-4 space-y-2">
-            <Link
-              to="/browse"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800"
-            >
-              Browse Items
-            </Link>
             {isAuthenticated ? (
               <>
                 <Link
