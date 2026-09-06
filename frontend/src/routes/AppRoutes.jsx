@@ -13,6 +13,7 @@ import LoginPage from '../pages/public/LoginPage';
 import RegisterPage from '../pages/public/RegisterPage';
 import VerifyEmailPage from '../pages/public/VerifyEmailPage';
 import ForgotPasswordPage from '../pages/public/ForgotPasswordPage';
+import FindItem from '../pages/items/FindItem';
 
 // User Pages
 import DashboardPage from '../pages/user/DashboardPage';
@@ -75,6 +76,7 @@ export const AppRoutes = () => {
       <Route element={<PublicLayout />}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/browse" element={<BrowsePage />} />
+        <Route path="/find" element={<FindItem />} />
         <Route path="/items/:id" element={<ItemDetailsPage />} />
       </Route>
 

@@ -5,6 +5,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 from pymongo import MongoClient
+from pymongo.database import Database
 import os
 
 from app.config import Config
@@ -13,9 +14,13 @@ from app.middleware.security_headers import register_security_headers
 load_dotenv()
 
 
-def create_app():
+class CampusFlask(Flask):
+    db: Database
+
+
+def create_app() -> CampusFlask:
     """Create and configure the Flask application."""
-    app = Flask(__name__)
+    app = CampusFlask(__name__)
     app.config.from_object(Config)
 
     # --------------------------------------------------
@@ -88,6 +93,7 @@ def create_app():
         app.db.claims.create_index("item_id")
         app.db.matches.create_index([("lost_item_id", 1), ("found_item_id", 1)], unique=True)
         app.db.notifications.create_index("user_id")
+        app.db.watchlists.create_index([("user_id", 1), ("lost_item_id", 1)], unique=True)
         app.db.audit_logs.create_index("created_at")
     except Exception as e:
         print(f"MongoDB index initialization note: {e}")
@@ -102,6 +108,7 @@ def create_app():
     from app.routes.notification_routes import notification_bp
     from app.routes.user_routes import user_bp
     from app.routes.admin_routes import admin_bp
+    from app.routes.watchlist_routes import watchlist_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/v1/auth")
     app.register_blueprint(dashboard_bp, url_prefix="/api/v1/dashboard")
@@ -110,6 +117,7 @@ def create_app():
     app.register_blueprint(notification_bp, url_prefix="/api/v1/notifications")
     app.register_blueprint(user_bp, url_prefix="/api/v1/users")
     app.register_blueprint(admin_bp, url_prefix="/api/v1/admin")
+    app.register_blueprint(watchlist_bp, url_prefix="/api/v1/watchlists")
 
     # --------------------------------------------------
     # Health Check

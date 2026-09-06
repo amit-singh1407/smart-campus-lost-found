@@ -8,6 +8,28 @@ from app.services.matching_engine import MatchingEngine
 
 class ItemService:
     @staticmethod
+    def _public_item(doc: dict):
+        """Return only fields safe for public discovery and claim review."""
+        return {
+            "_id": str(doc["_id"]),
+            "title": doc.get("title", ""),
+            "item_name": doc.get("title", ""),
+            "category": doc.get("category", "Others"),
+            "brand": doc.get("brand", ""),
+            "color": doc.get("color", ""),
+            "location": doc.get("location", "Campus"),
+            "date": doc.get("date"),
+            "description": doc.get("description", ""),
+            "storage_location": doc.get("storage_location", ""),
+            "image_url": doc.get("image_url", ""),
+            "imageUrl": doc.get("image_url", ""),
+            "type": doc.get("type"),
+            "status": doc.get("status", "open"),
+            "created_at": doc.get("created_at"),
+            "updated_at": doc.get("updated_at"),
+        }
+
+    @staticmethod
     def create_item(user_id: str, user_email: str, user_name: str, data: dict):
         db = current_app.db
 
@@ -93,16 +115,17 @@ class ItemService:
                 date_filter["$lte"] = filter_params["date_to"]
             query["date"] = date_filter
 
-        # Keyword search across title, description, brand, color, location
+        # Match each search term across the fields visible to campus users.
         if filter_params.get("q") and filter_params["q"].strip():
-            keyword = filter_params["q"].strip()
-            query["$or"] = [
-                {"title": {"$regex": keyword, "$options": "i"}},
-                {"description": {"$regex": keyword, "$options": "i"}},
-                {"location": {"$regex": keyword, "$options": "i"}},
-                {"brand": {"$regex": keyword, "$options": "i"}},
-                {"color": {"$regex": keyword, "$options": "i"}},
-            ]
+            terms = filter_params["q"].strip().split()
+            query["$and"] = [{"$or": [
+                {"title": {"$regex": term, "$options": "i"}},
+                {"category": {"$regex": term, "$options": "i"}},
+                {"description": {"$regex": term, "$options": "i"}},
+                {"location": {"$regex": term, "$options": "i"}},
+                {"brand": {"$regex": term, "$options": "i"}},
+                {"color": {"$regex": term, "$options": "i"}},
+            ]} for term in terms]
 
         # Pagination
         try:
@@ -121,10 +144,7 @@ class ItemService:
         total_pages = max(1, math.ceil(total_count / limit))
 
         cursor = db.items.find(query).sort("created_at", -1).skip(skip).limit(limit)
-        items = []
-        for doc in cursor:
-            doc["_id"] = str(doc["_id"])
-            items.append(doc)
+        items = [ItemService._public_item(doc) for doc in cursor]
 
         return {
             "items": items,
@@ -132,6 +152,7 @@ class ItemService:
             "page": page,
             "limit": limit,
             "pages": total_pages,
+            "total_pages": total_pages,
             "status_code": 200,
         }
 
@@ -142,8 +163,7 @@ class ItemService:
             doc = db.items.find_one({"_id": ObjectId(item_id)})
             if not doc:
                 return {"error": "Item not found", "status_code": 404}
-            doc["_id"] = str(doc["_id"])
-            return {"item": doc, "status_code": 200}
+            return {"item": ItemService._public_item(doc), "status_code": 200}
         except Exception:
             return {"error": "Invalid item ID format", "status_code": 400}
 

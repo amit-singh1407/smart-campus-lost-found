@@ -72,6 +72,16 @@ export const itemService = {
     const res = await api.get('/items/matches');
     return res.data;
   },
+
+  async createWatchlist(lostItemId) {
+    const res = await api.post('/watchlists', { lost_item_id: lostItemId });
+    return res.data;
+  },
+
+  async deleteWatchlist(id) {
+    const res = await api.delete(`/watchlists/${id}`);
+    return res.data;
+  },
 };
 
 export const claimService = {

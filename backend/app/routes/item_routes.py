@@ -180,8 +180,6 @@ def get_matches():
         found_doc = db.items.find_one({"_id": ObjectId(match["found_item_id"])})
 
         if lost_doc and found_doc:
-            lost_doc["_id"] = str(lost_doc["_id"])
-            found_doc["_id"] = str(found_doc["_id"])
             enriched_matches.append({
                 "id": str(match["_id"]),
                 "similarity_score": match.get("similarity_score", 80),
@@ -190,8 +188,8 @@ def get_matches():
                 "category": lost_doc.get("category"),
                 "lost_item_id": match["lost_item_id"],
                 "found_item_id": match["found_item_id"],
-                "lost_item": lost_doc,
-                "found_item": found_doc,
+                "lost_item": ItemService._public_item(lost_doc),
+                "found_item": ItemService._public_item(found_doc),
                 "created_at": match.get("created_at"),
             })
 

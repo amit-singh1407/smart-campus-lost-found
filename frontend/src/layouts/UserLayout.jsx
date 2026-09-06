@@ -25,7 +25,7 @@ export const UserLayout = () => {
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Browse All Items', path: '/browse', icon: Search },
+    { name: 'Find Item', path: '/find', icon: Search },
     { name: 'Report Lost Item', path: '/report-lost', icon: PlusCircle, badge: 'Lost' },
     { name: 'Report Found Item', path: '/report-found', icon: PackageSearch, badge: 'Found' },
     { name: 'Smart Matches', path: '/matches', icon: Sparkles },

@@ -3,6 +3,7 @@ from bson import ObjectId
 from pydantic import ValidationError
 from app.models.schemas import ClaimCreateSchema
 from app.services.claim_service import ClaimService
+from app.services.item_service import ItemService
 from app.middleware.auth import jwt_required_custom
 
 claim_bp = Blueprint("claims", __name__)
@@ -56,8 +57,7 @@ def get_claim_details(claim_id):
         # Enrich with item details
         item = db.items.find_one({"_id": ObjectId(claim["item_id"])})
         if item:
-            item["_id"] = str(item["_id"])
-            claim["item"] = item
+            claim["item"] = ItemService._public_item(item)
 
         return jsonify({"claim": claim}), 200
     except Exception as e:
