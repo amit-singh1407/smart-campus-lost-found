@@ -89,6 +89,8 @@ def create_app() -> CampusFlask:
         app.db.items.create_index([("title", "text"), ("description", "text"), ("location", "text"), ("brand", "text"), ("color", "text")])
         app.db.items.create_index("created_at")
         app.db.items.create_index("user_id")
+        app.db.items.create_index("handover_token_hash", sparse=True)
+        app.db.items.create_index("storage_id", unique=True, sparse=True)
         app.db.claims.create_index("user_id")
         app.db.claims.create_index("item_id")
         app.db.matches.create_index([("lost_item_id", 1), ("found_item_id", 1)], unique=True)
@@ -109,6 +111,7 @@ def create_app() -> CampusFlask:
     from app.routes.user_routes import user_bp
     from app.routes.admin_routes import admin_bp
     from app.routes.watchlist_routes import watchlist_bp
+    from app.routes.assistant_routes import assistant_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/v1/auth")
     app.register_blueprint(dashboard_bp, url_prefix="/api/v1/dashboard")
@@ -118,6 +121,8 @@ def create_app() -> CampusFlask:
     app.register_blueprint(user_bp, url_prefix="/api/v1/users")
     app.register_blueprint(admin_bp, url_prefix="/api/v1/admin")
     app.register_blueprint(watchlist_bp, url_prefix="/api/v1/watchlists")
+    app.register_blueprint(assistant_bp, url_prefix="/api/v1/assistant")
+
 
     # --------------------------------------------------
     # Health Check

@@ -29,6 +29,7 @@ export const ItemDetailsPage = () => {
   // Claim modal state
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [proofDescription, setProofDescription] = useState('');
+  const [answersToPrivateQuestions, setAnswersToPrivateQuestions] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [claimLoading, setClaimLoading] = useState(false);
   const [claimSuccess, setClaimSuccess] = useState(false);
@@ -64,6 +65,7 @@ export const ItemDetailsPage = () => {
       await claimService.createClaim({
         item_id: id,
         proof_description: proofDescription.trim(),
+        answers_to_private_questions: answersToPrivateQuestions.trim(),
         contact_phone: contactPhone.trim(),
       });
       setClaimSuccess(true);
@@ -76,6 +78,7 @@ export const ItemDetailsPage = () => {
       setClaimLoading(false);
     }
   };
+
 
   if (loading) {
     return <LoadingSpinner text="Loading item details..." />;
@@ -166,8 +169,28 @@ export const ItemDetailsPage = () => {
               </p>
             </div>
 
+            {/* Digital Locker Physical Tracking Details */}
+            {item.type === 'found' && (
+              <div className="sm:col-span-2 p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-blue-400 tracking-wider">
+                      Digital Locker Assigned
+                    </span>
+                    <p className="text-xs text-slate-200 font-semibold">
+                      {item.storage_shelf || 'Shelf A'} • {item.storage_locker || 'Locker Assigned'} (ID: {item.storage_id || 'LF-VAULT'})
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20 self-start sm:self-auto">
+                  🟢 Safely Stored in Campus Vault
+                </span>
+              </div>
+            )}
+
             {item.storage_location && (
-              <div className="sm:col-span-2 space-y-1 pt-2 border-t border-slate-800">
+              <div className="sm:col-span-2 space-y-1 pt-1 border-t border-slate-800">
                 <span className="text-slate-500 font-medium flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                   Handoff & Custody Station
@@ -175,6 +198,19 @@ export const ItemDetailsPage = () => {
                 <p className="text-emerald-300 font-semibold">{item.storage_location}</p>
               </div>
             )}
+          </div>
+
+          {/* Privacy Preservation Alert */}
+          <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800/90 flex items-start gap-3">
+            <div className="w-7 h-7 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0 mt-0.5">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <h5 className="text-xs font-bold text-slate-200">Privacy-Preserving Security Active</h5>
+              <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                Unique serial numbers, specific wallpaper photos, and secret identification marks are concealed to prevent false claims. You will be prompted to verify these during claim intake.
+              </p>
+            </div>
           </div>
 
           <div>
@@ -185,6 +221,38 @@ export const ItemDetailsPage = () => {
               {item.description || 'No detailed description provided.'}
             </p>
           </div>
+
+          {/* Digital Chain of Custody Trail */}
+          {item.custody_events && item.custody_events.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-blue-400" />
+                <span>Digital Chain of Custody</span>
+              </h4>
+              <div className="space-y-2">
+                {item.custody_events.map((event, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between text-xs"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <span className="font-semibold text-slate-200">
+                        {event.event.replace(/_/g, ' ')}
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        by {event.actor_name || 'Campus Security'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-500">
+                      {event.timestamp ? new Date(event.timestamp).toLocaleString() : 'Logged'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
 
           {/* Action Trigger */}
           <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
@@ -240,11 +308,25 @@ export const ItemDetailsPage = () => {
                 </label>
                 <textarea
                   required
-                  rows={4}
+                  rows={3}
                   value={proofDescription}
                   onChange={(e) => setProofDescription(e.target.value)}
-                  placeholder="Describe secret marks, stickers, engravings, or contents only you would know..."
+                  placeholder="Describe secret marks, stickers, engravings, or circumstances only you would know..."
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Private Verification Field */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  🔐 Answer to Private Identifying Markers (Anti-Fraud Check)
+                </label>
+                <textarea
+                  rows={2}
+                  value={answersToPrivateQuestions}
+                  onChange={(e) => setAnswersToPrivateQuestions(e.target.value)}
+                  placeholder="e.g. Phone wallpaper image, specific scratches, bill details, or locker code..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-purple-500"
                 />
               </div>
 
@@ -260,6 +342,7 @@ export const ItemDetailsPage = () => {
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
                 />
               </div>
+
 
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button

@@ -25,6 +25,16 @@ export const itemService = {
     return res.data;
   },
 
+  async searchByImage(file, params = {}) {
+    const formData = new FormData();
+    formData.append('file', file);
+    Object.entries(params).forEach(([key, value]) => formData.append(key, value));
+    const res = await api.post('/items/search-by-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
+
   // Item details by ID
   async getItemById(id) {
     const res = await api.get(`/items/${id}`);
@@ -111,6 +121,18 @@ export const claimService = {
   },
 };
 
+export const assistantService = {
+  async chatAssistant(query, language = 'en') {
+    const res = await api.post('/assistant/chat', { query, language });
+    return res.data;
+  },
+
+  async analyzeQuality(data) {
+    const res = await api.post('/assistant/analyze-quality', data);
+    return res.data;
+  },
+};
+
 export const adminService = {
   async getStats() {
     const res = await api.get('/admin/dashboard');
@@ -162,8 +184,14 @@ export const adminService = {
     return res.data;
   },
 
+  async verifyCollection(token) {
+    const res = await api.post('/admin/collection/verify', null, { params: { token } });
+    return res.data;
+  },
+
   async getAuditLogs(params = {}) {
     const res = await api.get('/admin/audit-logs', { params });
     return res.data;
   },
 };
+

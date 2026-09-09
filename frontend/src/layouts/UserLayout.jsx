@@ -25,6 +25,7 @@ export const UserLayout = () => {
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'AI Recovery Assistant', path: '/assistant', icon: Sparkles, badge: 'AI' },
     { name: 'Find Item', path: '/find', icon: Search },
     { name: 'Report Lost Item', path: '/report-lost', icon: PlusCircle, badge: 'Lost' },
     { name: 'Report Found Item', path: '/report-found', icon: PackageSearch, badge: 'Found' },
@@ -34,6 +35,7 @@ export const UserLayout = () => {
     { name: 'Notifications', path: '/notifications', icon: Bell },
     { name: 'Profile & Settings', path: '/profile', icon: User },
   ];
+
 
   return (
     <div className="min-h-screen bg-slate-950 flex">

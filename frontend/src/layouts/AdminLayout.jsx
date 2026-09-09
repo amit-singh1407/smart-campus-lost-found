@@ -15,14 +15,14 @@ import {
 import { useAuth } from '../context/AuthContext';
 
 export const AdminLayout = () => {
-  const { user, logout } = useAuth();
+  const { user, isSuperAdmin, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const adminNavItems = [
     { name: 'Overview', path: '/admin', icon: Activity },
-    { name: 'Users Directory', path: '/admin/users', icon: Users },
+    ...(isSuperAdmin ? [{ name: 'Users Directory', path: '/admin/users', icon: Users }] : []),
     { name: 'Inventory Moderation', path: '/admin/items', icon: Package },
     { name: 'Claims Verification', path: '/admin/claims', icon: FileCheck2 },
     { name: 'Reports & Analytics', path: '/admin/reports', icon: ScrollText },

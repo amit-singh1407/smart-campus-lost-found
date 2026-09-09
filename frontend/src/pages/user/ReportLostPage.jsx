@@ -51,7 +51,9 @@ export const ReportLostPage = () => {
     date: new Date().toISOString().split('T')[0],
     description: '',
     distinctiveFeatures: '',
+    privateVerificationQuestions: '',
     imageUrl: '',
+    imageHash: '',
   });
 
   const [imageFile, setImageFile] = useState(null);
@@ -62,12 +64,54 @@ export const ReportLostPage = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
+  // AI Report Quality Assistant state
+  const [qualityData, setQualityData] = useState({
+    quality_score: 25,
+    rating: 'Needs Detail',
+    badge_color: 'rose',
+    recommendation: 'Start filling out details. Adding brand, color, and location boosts AI matching fidelity.',
+    strengths: [],
+    suggestions: ['Add a descriptive item name and brand', 'Specify the campus location where last seen'],
+  });
+  const [analyzingQuality, setAnalyzingQuality] = useState(false);
+
+  const checkQuality = async (currentData) => {
+    try {
+      setAnalyzingQuality(true);
+      const res = await assistantService.analyzeQuality({
+        title: currentData.title,
+        category: currentData.category,
+        brand: currentData.brand,
+        color: currentData.color,
+        location: currentData.location,
+        description: currentData.description,
+        distinctive_features: currentData.distinctiveFeatures || currentData.privateVerificationQuestions,
+        has_image: Boolean(currentData.imageUrl || imageFile),
+        type: 'lost',
+      });
+      if (res.quality_score !== undefined) {
+        setQualityData(res);
+      }
+    } catch (err) {
+      // Non-blocking
+    } finally {
+      setAnalyzingQuality(false);
+    }
   };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: value };
+      // Debounce quality check
+      clearTimeout(window._qualityTimeout);
+      window._qualityTimeout = setTimeout(() => {
+        checkQuality(updated);
+      }, 500);
+      return updated;
+    });
+  };
+
 
   const handleImageSelect = async (e) => {
     const file = e.target.files?.[0];
@@ -81,7 +125,7 @@ export const ReportLostPage = () => {
     try {
       const res = await itemService.uploadImage(file);
       if (res.url) {
-        setFormData((prev) => ({ ...prev, imageUrl: res.url }));
+        setFormData((prev) => ({ ...prev, imageUrl: res.url, imageHash: res.image_hash || '' }));
       }
     } catch (err) {
       setError('Image upload failed. You can still submit report without image or provide URL.');
@@ -93,7 +137,7 @@ export const ReportLostPage = () => {
   const handleRemoveImage = () => {
     setImageFile(null);
     setImagePreview('');
-    setFormData((prev) => ({ ...prev, imageUrl: '' }));
+    setFormData((prev) => ({ ...prev, imageUrl: '', imageHash: '' }));
   };
 
   const handleSubmit = async (e) => {
@@ -116,6 +160,7 @@ export const ReportLostPage = () => {
         description: formData.description.trim(),
         distinctive_features: formData.distinctiveFeatures.trim(),
         image_url: formData.imageUrl.trim(),
+        image_hash: formData.imageHash,
         type: 'lost',
       };
 
@@ -280,14 +325,37 @@ export const ReportLostPage = () => {
             />
           </div>
 
+          {/* Privacy-Preserving Hidden Verification Feature */}
+          <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-200">
+                🔐 Private Verification Details (Hidden from Public View)
+              </label>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20">
+                Privacy Shielded
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Information only the true owner would know (e.g. wallpaper picture, specific sticker on the back, internal engravings, or hidden compartment items). These remain completely hidden to prevent fraudulent claims.
+            </p>
+            <input
+              type="text"
+              name="privateVerificationQuestions"
+              placeholder="e.g. Lock screen wallpaper is a mountain photo; small anime sticker inside case"
+              value={formData.privateVerificationQuestions}
+              onChange={handleChange}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-100 text-xs focus:outline-none focus:border-rose-500"
+            />
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Distinctive Features / Secret Proof of Ownership
+              Visible Distinctive Features (Public)
             </label>
             <input
               type="text"
               name="distinctiveFeatures"
-              placeholder="e.g. Specific stickers, lock wallpaper, serial number snippet"
+              placeholder="e.g. Scratched bottom corner, red zipper tag"
               value={formData.distinctiveFeatures}
               onChange={handleChange}
               className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500"
@@ -341,6 +409,66 @@ export const ReportLostPage = () => {
             )}
           </div>
 
+          {/* AI Report Quality Assistant Live Meter */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-xs">
+                  AI
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-200">AI Report Quality Assistant</h4>
+                  <p className="text-[10px] text-slate-400">Live matching probability score</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                    qualityData.quality_score >= 80
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      : qualityData.quality_score >= 50
+                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                  }`}
+                >
+                  {qualityData.quality_score}% • {qualityData.rating}
+                </span>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+              <div
+                className={`h-full transition-all duration-500 rounded-full ${
+                  qualityData.quality_score >= 80
+                    ? 'bg-emerald-500'
+                    : qualityData.quality_score >= 50
+                    ? 'bg-amber-500'
+                    : 'bg-rose-500'
+                }`}
+                style={{ width: `${qualityData.quality_score}%` }}
+              />
+            </div>
+
+            <p className="text-[11px] text-slate-300 italic">{qualityData.recommendation}</p>
+
+            {qualityData.suggestions && qualityData.suggestions.length > 0 && (
+              <div className="pt-1 space-y-1">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+                  Recommended Additions:
+                </span>
+                <ul className="space-y-0.5 text-[10px] text-slate-400">
+                  {qualityData.suggestions.slice(0, 3).map((tip, idx) => (
+                    <li key={idx} className="flex items-center gap-1.5">
+                      <span className="text-amber-400">✦</span>
+                      <span>{tip}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
           <button
             type="submit"
             disabled={loading || uploadingImage || success}
@@ -365,3 +493,4 @@ export const ReportLostPage = () => {
 };
 
 export default ReportLostPage;
+

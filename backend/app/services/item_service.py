@@ -1,4 +1,5 @@
 import math
+import secrets
 from datetime import datetime, timezone
 from bson import ObjectId
 from flask import current_app
@@ -9,7 +10,7 @@ from app.services.matching_engine import MatchingEngine
 class ItemService:
     @staticmethod
     def _public_item(doc: dict):
-        """Return only fields safe for public discovery and claim review."""
+        """Return only fields safe for public discovery and claim review, concealing private markers."""
         return {
             "_id": str(doc["_id"]),
             "title": doc.get("title", ""),
@@ -21,29 +22,91 @@ class ItemService:
             "date": doc.get("date"),
             "description": doc.get("description", ""),
             "storage_location": doc.get("storage_location", ""),
+            "storage_shelf": doc.get("storage_shelf", ""),
+            "storage_locker": doc.get("storage_locker", ""),
+            "storage_status": doc.get("storage_status", "SAFE_STORAGE" if doc.get("type") == "found" else ""),
+            "storage_id": doc.get("storage_id", ""),
+            "is_high_value": doc.get("is_high_value", False),
             "image_url": doc.get("image_url", ""),
             "imageUrl": doc.get("image_url", ""),
             "type": doc.get("type"),
             "status": doc.get("status", "open"),
+            "has_verification_questions": bool(doc.get("private_verification_questions")),
+            "custody_events": doc.get("custody_events", []),
             "created_at": doc.get("created_at"),
             "updated_at": doc.get("updated_at"),
+        }
+
+
+    @staticmethod
+    def search_items_by_image(image_hash: str, page=1, limit=12):
+        """Rank found items by perceptual-hash similarity without exposing hashes."""
+        db = current_app.db
+        try:
+            page = max(1, int(page))
+            limit = max(1, min(100, int(limit)))
+        except (TypeError, ValueError):
+            page, limit = 1, 12
+
+        candidates = db.items.find({
+            "type": "found",
+            "status": {"$in": ["open", "matched"]},
+            "image_hash": {"$exists": True, "$ne": ""},
+        })
+        ranked = []
+        for doc in candidates:
+            stored_hash = doc.get("image_hash", "")
+            if len(stored_hash) != len(image_hash):
+                continue
+            distance = sum(left != right for left, right in zip(image_hash, stored_hash))
+            score = round((1 - distance / len(image_hash)) * 100)
+            ranked.append((score, doc))
+
+        ranked.sort(key=lambda entry: entry[0], reverse=True)
+        total = len(ranked)
+        start = (page - 1) * limit
+        results = []
+        for score, doc in ranked[start:start + limit]:
+            item = ItemService._public_item(doc)
+            item["image_match_score"] = score
+            results.append(item)
+
+        total_pages = max(1, math.ceil(total / limit))
+        return {
+            "items": results,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "pages": total_pages,
+            "total_pages": total_pages,
+            "status_code": 200,
         }
 
     @staticmethod
     def create_item(user_id: str, user_email: str, user_name: str, data: dict):
         db = current_app.db
 
+        category = data.get("category", "Others").strip()
+        is_high_value = bool(data.get("is_high_value")) or any(
+            hv in category.lower() for hv in ["laptop", "electronic", "phone", "wallet", "watch", "card"]
+        )
+
         item_doc = {
             "title": data["title"].strip(),
-            "category": data.get("category", "Others").strip(),
+            "category": category,
             "brand": data.get("brand", "").strip(),
             "color": data.get("color", "").strip(),
             "location": data.get("location", "Campus").strip(),
             "date": data.get("date") or datetime.now(timezone.utc).isoformat(),
             "description": data.get("description", "").strip(),
             "distinctive_features": data.get("distinctive_features", "").strip(),
+            "private_verification_questions": data.get("private_verification_questions", "").strip(),
             "storage_location": data.get("storage_location", "").strip(),
+            "storage_shelf": data.get("storage_shelf", "").strip(),
+            "storage_locker": data.get("storage_locker", "").strip(),
+            "is_high_value": is_high_value,
             "image_url": data.get("image_url", "").strip(),
+            "image_hash": data.get("image_hash", "").strip(),
             "type": data["type"],  # 'lost' or 'found'
             "status": "open",  # 'open', 'matched', 'claimed', 'resolved'
             "user_id": str(user_id),
@@ -52,6 +115,24 @@ class ItemService:
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
+
+        if item_doc["type"] == "found":
+            shelf = data.get("storage_shelf", "").strip() or "Shelf A"
+            locker = data.get("storage_locker", "").strip() or f"Locker-{secrets.randbelow(50) + 1}"
+            item_doc.update({
+                "storage_shelf": shelf,
+                "storage_locker": locker,
+                "storage_id": f"LF-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}",
+                "storage_status": "STORED",
+                "custody_events": [{
+                    "event": "FOUND_REPORTED",
+                    "actor_id": str(user_id),
+                    "actor_name": user_name,
+                    "location_details": f"{data.get('storage_location', 'Security Vault')} ({shelf}, {locker})",
+                    "timestamp": item_doc["created_at"],
+                }],
+            })
+
 
         res = db.items.insert_one(item_doc)
         item_id = str(res.inserted_id)

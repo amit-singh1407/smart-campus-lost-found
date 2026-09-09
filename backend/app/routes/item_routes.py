@@ -21,7 +21,7 @@ def upload_image():
     if "error" in res:
         return jsonify({"message": res["error"]}), res["status_code"]
 
-    return jsonify({"url": res["url"], "message": "Image uploaded successfully"}), 200
+    return jsonify({"url": res["url"], "image_hash": res.get("image_hash", ""), "message": "Image uploaded successfully"}), 200
 
 
 @item_bp.get("")
@@ -50,6 +50,24 @@ def get_item(item_id):
     result = ItemService.get_item_by_id(item_id)
     if "error" in result:
         return jsonify({"message": result["error"]}), result["status_code"]
+    return jsonify(result), result["status_code"]
+
+
+@item_bp.post("/search-by-image")
+def search_by_image():
+    """Rank live found-item records against an uploaded image."""
+    if "file" not in request.files:
+        return jsonify({"message": "No file payload in request"}), 400
+
+    file_result = upload_image_file(request.files["file"])
+    if "error" in file_result:
+        return jsonify({"message": file_result["error"]}), file_result["status_code"]
+
+    result = ItemService.search_items_by_image(
+        file_result["image_hash"],
+        page=request.form.get("page", 1),
+        limit=request.form.get("limit", 12),
+    )
     return jsonify(result), result["status_code"]
 
 

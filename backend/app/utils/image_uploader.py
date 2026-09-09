@@ -14,6 +14,14 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
 
+def image_perceptual_hash(file_bytes: bytes) -> str:
+    """Return a compact average hash for approximate image comparisons."""
+    image = Image.open(io.BytesIO(file_bytes)).convert("L").resize((8, 8))
+    pixels = list(image.getdata())
+    average = sum(pixels) / len(pixels)
+    return "".join("1" if pixel >= average else "0" for pixel in pixels)
+
+
 def init_cloudinary():
     """Initialize Cloudinary SDK with environment credentials."""
     cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "")
@@ -65,6 +73,7 @@ def upload_image_file(file_storage) -> dict:
 
     # Reset file pointer for uploading
     file_storage.seek(0)
+    image_hash = image_perceptual_hash(file_bytes)
 
     # Attempt Cloudinary upload
     cloudinary_ready = init_cloudinary()
@@ -77,7 +86,7 @@ def upload_image_file(file_storage) -> dict:
             )
             secure_url = upload_result.get("secure_url")
             if secure_url:
-                return {"url": secure_url, "public_id": upload_result.get("public_id"), "status_code": 200}
+                return {"url": secure_url, "public_id": upload_result.get("public_id"), "image_hash": image_hash, "status_code": 200}
         except Exception as e:
             logger.warning(f"Cloudinary upload error: {e}. Generating base64 fallback.")
 
@@ -87,4 +96,4 @@ def upload_image_file(file_storage) -> dict:
     b64_str = base64.b64encode(file_bytes).decode("utf-8")
     data_uri = f"data:{mime};base64,{b64_str}"
 
-    return {"url": data_uri, "status_code": 200}
+    return {"url": data_uri, "image_hash": image_hash, "status_code": 200}

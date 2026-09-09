@@ -26,6 +26,7 @@ import MatchesPage from '../pages/user/MatchesPage';
 import ClaimsPage from '../pages/user/ClaimsPage';
 import NotificationsPage from '../pages/user/NotificationsPage';
 import ProfilePage from '../pages/user/ProfilePage';
+import RecoveryAssistantPage from '../pages/user/RecoveryAssistantPage';
 
 // Admin Pages
 import AdminLoginPage from '../pages/admin/AdminLoginPage';
@@ -69,6 +70,21 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
+const SuperAdminRoute = ({ children }) => {
+  const { isAuthenticated, isSuperAdmin, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <LoadingSpinner text="Verifying super administrator credentials..." />;
+  }
+
+  if (!isAuthenticated || !isSuperAdmin) {
+    return <Navigate to="/admin" state={{ from: location }} replace />;
+  }
+
+  return children;
+};
+
 export const AppRoutes = () => {
   return (
     <Routes>
@@ -96,7 +112,9 @@ export const AppRoutes = () => {
         }
       >
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/assistant" element={<RecoveryAssistantPage />} />
         <Route path="/report-lost" element={<ReportLostPage />} />
+
         <Route path="/report-found" element={<ReportFoundPage />} />
         <Route path="/my-reports" element={<MyReportsPage />} />
         <Route path="/matches" element={<MatchesPage />} />
@@ -115,7 +133,14 @@ export const AppRoutes = () => {
         }
       >
         <Route index element={<AdminDashboardPage />} />
-        <Route path="users" element={<AdminUsersPage />} />
+        <Route
+          path="users"
+          element={
+            <SuperAdminRoute>
+              <AdminUsersPage />
+            </SuperAdminRoute>
+          }
+        />
         <Route path="items" element={<AdminItemsPage />} />
         <Route path="claims" element={<AdminClaimsPage />} />
         <Route path="reports" element={<AdminReportsPage />} />

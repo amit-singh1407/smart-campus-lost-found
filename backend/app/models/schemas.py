@@ -45,8 +45,13 @@ class ItemCreateSchema(BaseModel):
     date: Optional[str] = None
     description: Optional[str] = ""
     distinctive_features: Optional[str] = ""
+    private_verification_questions: Optional[str] = ""  # Hidden from public, used in claim verification
     storage_location: Optional[str] = ""
+    storage_shelf: Optional[str] = ""  # e.g., "Shelf B"
+    storage_locker: Optional[str] = ""  # e.g., "Locker 17"
+    is_high_value: Optional[bool] = False
     image_url: Optional[str] = ""
+    image_hash: Optional[str] = ""
     type: str = Field(..., pattern="^(lost|found)$")
 
 
@@ -59,8 +64,13 @@ class ItemUpdateSchema(BaseModel):
     date: Optional[str] = None
     description: Optional[str] = None
     distinctive_features: Optional[str] = None
+    private_verification_questions: Optional[str] = None
     storage_location: Optional[str] = None
+    storage_shelf: Optional[str] = None
+    storage_locker: Optional[str] = None
+    is_high_value: Optional[bool] = None
     image_url: Optional[str] = None
+    image_hash: Optional[str] = None
     status: Optional[str] = None
 
 
@@ -69,8 +79,27 @@ class ClaimCreateSchema(BaseModel):
     proof_description: str = Field(..., min_length=5)
     contact_phone: Optional[str] = ""
     evidence_image_url: Optional[str] = ""
+    answers_to_private_questions: Optional[str] = ""
 
 
 class ClaimResolveSchema(BaseModel):
     decision: str = Field(..., pattern="^(approved|rejected|completed|request_info)$")
     notes: Optional[str] = ""
+
+
+class AssistantChatSchema(BaseModel):
+    query: str = Field(..., min_length=2, max_length=1000)
+    language: Optional[str] = "en"
+
+
+class QualityAnalyzeSchema(BaseModel):
+    title: Optional[str] = ""
+    category: Optional[str] = ""
+    brand: Optional[str] = ""
+    color: Optional[str] = ""
+    location: Optional[str] = ""
+    description: Optional[str] = ""
+    distinctive_features: Optional[str] = ""
+    has_image: Optional[bool] = False
+    type: Optional[str] = "lost"
+

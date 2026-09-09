@@ -62,8 +62,11 @@ export const FindItem = () => {
     if (file.size > 5 * 1024 * 1024) { setMessage('Please choose an image smaller than 5 MB.'); return; }
     setPhotoLoading(true); setMessage('Photo uploaded. Searching found-item records...');
     try {
-      await itemService.uploadImage(file);
-      await loadItems(1);
+      const result = await itemService.searchByImage(file, { page: 1, limit: 12 });
+      setItems(result.items || []);
+      setPage(result.page || 1);
+      setPages(result.total_pages || 1);
+      setTotal(result.total || 0);
       setMessage('Photo search complete. Review these possible found-item matches.');
     } catch (error) { setMessage(error.response?.data?.message || 'Photo search is unavailable right now.'); }
     finally { setPhotoLoading(false); event.target.value = ''; }

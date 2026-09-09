@@ -59,7 +59,11 @@ export const ReportFoundPage = () => {
     date: new Date().toISOString().split('T')[0],
     description: '',
     storageLocation: STORAGE_LOCATIONS[0],
+    storageShelf: 'Shelf A',
+    storageLocker: 'Locker 12',
+    privateVerificationQuestions: '',
     imageUrl: '',
+    imageHash: '',
   });
 
   const [imageFile, setImageFile] = useState(null);
@@ -89,7 +93,7 @@ export const ReportFoundPage = () => {
     try {
       const res = await itemService.uploadImage(file);
       if (res.url) {
-        setFormData((prev) => ({ ...prev, imageUrl: res.url }));
+        setFormData((prev) => ({ ...prev, imageUrl: res.url, imageHash: res.image_hash || '' }));
       }
     } catch (err) {
       setError('Image upload failed. You can still submit report without image or provide URL.');
@@ -101,7 +105,7 @@ export const ReportFoundPage = () => {
   const handleRemoveImage = () => {
     setImageFile(null);
     setImagePreview('');
-    setFormData((prev) => ({ ...prev, imageUrl: '' }));
+    setFormData((prev) => ({ ...prev, imageUrl: '', imageHash: '' }));
   };
 
   const handleSubmit = async (e) => {
@@ -123,7 +127,11 @@ export const ReportFoundPage = () => {
         date: formData.date,
         description: formData.description.trim(),
         storage_location: formData.storageLocation,
+        storage_shelf: formData.storageShelf,
+        storage_locker: formData.storageLocker,
+        private_verification_questions: formData.privateVerificationQuestions.trim(),
         image_url: formData.imageUrl.trim(),
+        image_hash: formData.imageHash,
         type: 'found',
       };
 
@@ -138,6 +146,7 @@ export const ReportFoundPage = () => {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
@@ -292,6 +301,65 @@ export const ReportFoundPage = () => {
             </select>
           </div>
 
+          {/* Digital Lost & Found Locker Assignment */}
+          <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-200">
+                📦 Digital Locker & Custody Assignment
+              </label>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-semibold border border-blue-500/20">
+                Locker Tracking
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1">Physical Shelf Tag</label>
+                <input
+                  type="text"
+                  name="storageShelf"
+                  placeholder="e.g. Shelf B or Rack 3"
+                  value={formData.storageShelf}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-800 bg-slate-900 text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1">Vault / Locker ID</label>
+                <input
+                  type="text"
+                  name="storageLocker"
+                  placeholder="e.g. Locker 17 or Bin 04"
+                  value={formData.storageLocker}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-800 bg-slate-900 text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Privacy Preserving Hidden Details */}
+          <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-200">
+                🔐 Private Identifying Details (Hidden from Public)
+              </label>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20">
+                Anti-Fraud Shield
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Note any serial numbers, cash amounts, private engravings, or lockscreen wallpapers. Claimants will be prompted to verify these before pickup.
+            </p>
+            <input
+              type="text"
+              name="privateVerificationQuestions"
+              placeholder="e.g. Contains ₹500 bill and metro card with name Rohit"
+              value={formData.privateVerificationQuestions}
+              onChange={handleChange}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
               Description & Visible Details
@@ -305,6 +373,7 @@ export const ReportFoundPage = () => {
               className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
             />
           </div>
+
 
           {/* Cloudinary Image Upload Section */}
           <div>

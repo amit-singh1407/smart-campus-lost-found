@@ -1,13 +1,53 @@
 import re
+import math
 from datetime import datetime, timezone
 from bson import ObjectId
 from flask import current_app
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
+
+try:
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+    _SKLEARN_AVAILABLE = True
+except (ImportError, OSError):
+    TfidfVectorizer = None
+    cosine_similarity = None
+    _SKLEARN_AVAILABLE = False
+
+
+STOP_WORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from",
+    "in", "is", "it", "of", "on", "or", "that", "the", "this", "to",
+    "was", "with",
+}
 
 
 class MatchingEngine:
+    @staticmethod
+    def _fallback_text_similarity(text1: str, text2: str) -> float:
+        """Compute TF-IDF cosine similarity without compiled ML dependencies."""
+        def terms(text):
+            words = [word for word in re.findall(r"\w+", text) if word not in STOP_WORDS]
+            return words + [f"{words[index]} {words[index + 1]}" for index in range(len(words) - 1)]
+
+        documents = [terms(text1), terms(text2)]
+        vocabulary = set(documents[0]).union(documents[1])
+        if not vocabulary:
+            return 0.0
+
+        vectors = []
+        for document in documents:
+            counts = {term: document.count(term) for term in vocabulary}
+            vector = {}
+            for term, count in counts.items():
+                document_frequency = sum(term in other for other in documents)
+                inverse_document_frequency = math.log(3 / (1 + document_frequency)) + 1
+                vector[term] = (1 + math.log(count)) * inverse_document_frequency if count else 0.0
+            vectors.append(vector)
+
+        numerator = sum(vectors[0][term] * vectors[1][term] for term in vocabulary)
+        denominator = math.sqrt(sum(value * value for value in vectors[0].values())) * math.sqrt(sum(value * value for value in vectors[1].values()))
+        return numerator / denominator if denominator else 0.0
+
     @staticmethod
     def calculate_text_similarity(text1: str, text2: str) -> float:
         """Compute NLP TF-IDF Cosine Similarity between two text descriptions."""
@@ -18,6 +58,8 @@ class MatchingEngine:
             return 0.0
 
         try:
+            if not _SKLEARN_AVAILABLE:
+                return MatchingEngine._fallback_text_similarity(t1, t2)
             vectorizer = TfidfVectorizer(
                 ngram_range=(1, 2),
                 stop_words="english",
@@ -25,7 +67,7 @@ class MatchingEngine:
             )
             tfidf_matrix = vectorizer.fit_transform([t1, t2])
             sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
-            return float(np.clip(sim, 0.0, 1.0))
+            return max(0.0, min(1.0, float(sim)))
         except Exception:
             # Fallback to Jaccard word set similarity
             w1 = set(re.findall(r"\w+", t1))
@@ -149,7 +191,7 @@ class MatchingEngine:
         score += nlp_score
 
         # Final score rounding & tier categorization
-        final_score = int(round(np.clip(score, 0.0, 100.0)))
+        final_score = int(round(max(0.0, min(100.0, score))))
 
         if final_score >= 80:
             match_tier = "strong"  # 80-100

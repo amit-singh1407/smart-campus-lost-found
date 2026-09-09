@@ -20,7 +20,7 @@ export const ItemCard = ({ item }) => {
             <Tag className="w-10 h-10 opacity-30" />
           </div>
         )}
-        <div className="absolute top-3 left-3 flex gap-2">
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
           <Badge variant={isLost ? 'danger' : 'success'}>
             {isLost ? 'LOST' : 'FOUND'}
           </Badge>
@@ -29,14 +29,25 @@ export const ItemCard = ({ item }) => {
               {item.category}
             </Badge>
           )}
+          {item.storage_locker && (
+            <Badge variant="primary" className="bg-blue-950/80 border-blue-500/30 text-[10px]">
+              📦 {item.storage_locker}
+            </Badge>
+          )}
         </div>
-        {item.status && item.status !== 'open' && (
-          <div className="absolute top-3 right-3">
+        <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
+          {item.status && item.status !== 'open' && (
             <Badge variant="purple" className="capitalize">
               {item.status}
             </Badge>
-          </div>
-        )}
+          )}
+          {item.is_high_value && (
+            <Badge variant="warning" className="text-[10px]">
+              💎 High Value
+            </Badge>
+          )}
+        </div>
+
       </div>
 
       <div className="p-5 flex-1 flex flex-col justify-between">

@@ -5,7 +5,7 @@ from app.models.schemas import UserLoginSchema, ClaimResolveSchema
 from app.services.auth_service import AuthService
 from app.services.claim_service import ClaimService
 from app.services.audit_service import record_audit_log
-from app.middleware.admin import admin_required
+from app.middleware.admin import admin_required, super_admin_required
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -86,7 +86,7 @@ def get_admin_dashboard_stats():
 
 
 @admin_bp.get("/users")
-@admin_required
+@super_admin_required
 def get_users():
     """Retrieve campus users list with search, role/status filtering, and pagination."""
     db = current_app.db
@@ -115,7 +115,7 @@ def get_users():
 
 
 @admin_bp.get("/users/<user_id>")
-@admin_required
+@super_admin_required
 def get_user_by_id(user_id):
     """Retrieve details for a single campus user."""
     db = current_app.db
@@ -131,7 +131,7 @@ def get_user_by_id(user_id):
 
 @admin_bp.put("/users/<user_id>/status")
 @admin_bp.patch("/users/<user_id>/status")
-@admin_required
+@super_admin_required
 def update_user_status(user_id):
     """Suspend or reactivate a campus user account."""
     db = current_app.db
@@ -154,7 +154,7 @@ def update_user_status(user_id):
 
 
 @admin_bp.patch("/users/<user_id>/role")
-@admin_required
+@super_admin_required
 def update_user_role(user_id):
     """Assign or revoke administrative role for a user."""
     db = current_app.db
@@ -218,14 +218,18 @@ def admin_delete_item(item_id):
 @admin_bp.get("/claims")
 @admin_required
 def get_admin_claims():
-    """Retrieve claims queue with optional status filter."""
+    """Retrieve claims queue with optional status and priority filter."""
     db = current_app.db
     query = {}
     status = request.args.get("status")
+    priority = request.args.get("priority")
+
     if status and status != "all":
         query["status"] = status
+    if priority and priority != "all":
+        query["priority_tier"] = priority.upper()
 
-    cursor = db.claims.find(query).sort("created_at", -1).limit(100)
+    cursor = db.claims.find(query).sort([("priority_score", -1), ("created_at", -1)]).limit(100)
     claims = []
     for doc in cursor:
         doc["_id"] = str(doc["_id"])
@@ -235,8 +239,15 @@ def get_admin_claims():
             doc["item_title"] = item.get("title")
             doc["item_category"] = item.get("category")
             doc["item_location"] = item.get("location")
+            doc["storage_locker"] = item.get("storage_locker")
+            doc["storage_shelf"] = item.get("storage_shelf")
+            doc["storage_id"] = item.get("storage_id")
+            doc["is_high_value"] = item.get("is_high_value", False)
+            doc["private_verification_questions"] = item.get("private_verification_questions", "")
+            doc["distinctive_features"] = item.get("distinctive_features", "")
         claims.append(doc)
     return jsonify({"claims": claims}), 200
+
 
 
 @admin_bp.get("/claims/<claim_id>")
@@ -272,6 +283,19 @@ def resolve_claim(claim_id):
         return jsonify(result), result["status_code"]
     except ValidationError as err:
         return jsonify({"message": "Invalid resolution payload", "errors": err.errors()}), 422
+
+
+@admin_bp.post("/collection/verify")
+@admin_required
+def verify_collection():
+    """Consume a one-time handover token during the physical pickup."""
+    token = request.args.get("token") or (request.get_json() or {}).get("token")
+    if not token:
+        return jsonify({"message": "A handover token is required."}), 400
+    result = ClaimService.collect_item(token, {"id": g.user_id, "email": g.user_email})
+    if "error" in result:
+        return jsonify({"message": result["error"]}), result["status_code"]
+    return jsonify(result), result["status_code"]
 
 
 @admin_bp.get("/audit-logs")
