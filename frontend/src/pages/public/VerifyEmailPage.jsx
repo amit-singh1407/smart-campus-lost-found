@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Compass, KeyRound, AlertCircle, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
 import { authService } from '../../services/authService';
@@ -15,23 +15,51 @@ export const VerifyEmailPage = () => {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  const handleVerify = async (e) => {
-    e.preventDefault();
+  // Ref to track whether auto-submit is already in-flight
+  const autoSubmitting = useRef(false);
+
+  const verifyOtp = async (otpValue, emailValue) => {
+    if (autoSubmitting.current) return;
+    autoSubmitting.current = true;
     setError('');
     setMessage('');
     setLoading(true);
 
     try {
-      const res = await authService.verifyEmail({ email: email.trim(), otp: otp.trim() });
-      setMessage(res.message || 'Email verified successfully! You can now log in.');
+      const res = await authService.verifyEmail({ email: emailValue.trim(), otp: otpValue.trim() });
+      setMessage(res.message || 'Email verified successfully! Redirecting to login...');
       setTimeout(() => {
         navigate('/login', { state: { emailVerified: true } });
       }, 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid or expired OTP. Please try again.');
+      autoSubmitting.current = false;
     } finally {
       setLoading(false);
     }
+  };
+
+  // Auto-submit when OTP reaches 6 digits
+  useEffect(() => {
+    if (otp.length === 6 && email) {
+      verifyOtp(otp, email);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otp]);
+
+  const handleOtpChange = (e) => {
+    // Only allow numeric input, max 6 digits
+    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+    setOtp(value);
+    // Reset auto-submit ref when user clears/changes OTP
+    if (value.length < 6) {
+      autoSubmitting.current = false;
+    }
+  };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    await verifyOtp(otp, email);
   };
 
   const handleResend = async () => {
@@ -42,6 +70,8 @@ export const VerifyEmailPage = () => {
     setError('');
     setMessage('');
     setResending(true);
+    setOtp('');
+    autoSubmitting.current = false;
 
     try {
       const res = await authService.resendOtp({ email: email.trim() });
@@ -107,19 +137,41 @@ export const VerifyEmailPage = () => {
                 </div>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   required
                   maxLength={6}
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
+                  onChange={handleOtpChange}
                   placeholder="123456"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-lg font-mono tracking-widest text-center focus:outline-none focus:border-blue-500"
+                  disabled={loading}
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-lg font-mono tracking-widest text-center focus:outline-none focus:border-blue-500 disabled:opacity-60"
                 />
               </div>
+              {/* Progress dots */}
+              <div className="flex justify-center gap-2 mt-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                      i < otp.length
+                        ? 'bg-blue-500 scale-110'
+                        : 'bg-slate-700'
+                    }`}
+                  />
+                ))}
+              </div>
+              {otp.length === 6 && loading && (
+                <p className="text-center text-xs text-blue-400 mt-2 flex items-center justify-center gap-1.5">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Verifying automatically…
+                </p>
+              )}
             </div>
 
             <button
               type="submit"
-              disabled={loading || otp.length < 4}
+              disabled={loading || otp.length < 6}
               className="w-full mt-2 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? (
@@ -128,7 +180,7 @@ export const VerifyEmailPage = () => {
                   <span>Verifying Code...</span>
                 </>
               ) : (
-                <span>Confirm & Activate Account</span>
+                <span>Confirm &amp; Activate Account</span>
               )}
             </button>
           </form>

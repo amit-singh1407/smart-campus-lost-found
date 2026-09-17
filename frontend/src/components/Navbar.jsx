@@ -26,9 +26,11 @@ export const Navbar = () => {
         <div className="flex h-16 items-center justify-between gap-4">
           {/* Logo & Campus Brand */}
           <Link to="/" className="flex items-center gap-2.5 shrink-0 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 group-hover:scale-105 transition-transform">
-              <Compass className="w-5 h-5" />
-            </div>
+            <img
+              src="/logo.png"
+              alt="Smart Campus Lost & Found Logo"
+              className="w-10 h-10 rounded-xl object-cover shadow-lg shadow-blue-500/25 group-hover:scale-105 transition-transform"
+            />
             <div className="flex flex-col">
               <span className="text-base font-bold text-slate-100 tracking-tight flex items-center gap-1.5">
                 Smart Campus <span className="text-blue-400 font-semibold">Lost&Found</span>

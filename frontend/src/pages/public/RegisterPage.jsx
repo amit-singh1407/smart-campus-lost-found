@@ -11,8 +11,64 @@ import {
   ArrowRight,
   Loader2,
   CheckCircle2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { authService } from '../../services/authService';
+
+// Password strength rules
+const PASSWORD_RULES = [
+  { id: 'length',    label: 'At least 8 characters',              test: (p) => p.length >= 8 },
+  { id: 'uppercase', label: 'At least one uppercase letter (A-Z)', test: (p) => /[A-Z]/.test(p) },
+  { id: 'lowercase', label: 'At least one lowercase letter (a-z)', test: (p) => /[a-z]/.test(p) },
+  { id: 'number',    label: 'At least one number (0-9)',           test: (p) => /[0-9]/.test(p) },
+  { id: 'special',   label: 'At least one special character (!@#$…)', test: (p) => /[^A-Za-z0-9]/.test(p) },
+];
+
+const PasswordStrengthIndicator = ({ password }) => {
+  if (!password) return null;
+
+  const passed = PASSWORD_RULES.filter((r) => r.test(password)).length;
+  const strength = passed <= 1 ? 'Weak' : passed <= 3 ? 'Fair' : passed === 4 ? 'Good' : 'Strong';
+  const colors = ['bg-rose-500', 'bg-orange-400', 'bg-yellow-400', 'bg-blue-400', 'bg-emerald-500'];
+  const textColors = ['text-rose-400', 'text-orange-400', 'text-yellow-400', 'text-blue-400', 'text-emerald-400'];
+
+  return (
+    <div className="mt-2 space-y-2">
+      {/* Strength bar */}
+      <div className="flex gap-1">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div
+            key={i}
+            className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+              i < passed ? colors[passed - 1] : 'bg-slate-700'
+            }`}
+          />
+        ))}
+      </div>
+      <p className={`text-[11px] font-semibold ${textColors[passed - 1] || 'text-slate-500'}`}>
+        {password ? `Strength: ${strength}` : ''}
+      </p>
+
+      {/* Rule checklist */}
+      <ul className="space-y-1">
+        {PASSWORD_RULES.map((rule) => {
+          const ok = rule.test(password);
+          return (
+            <li key={rule.id} className={`flex items-center gap-1.5 text-[11px] transition-colors ${ok ? 'text-emerald-400' : 'text-slate-500'}`}>
+              <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 text-[9px] font-bold border transition-colors ${
+                ok ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'border-slate-700 text-slate-600'
+              }`}>
+                {ok ? '✓' : '○'}
+              </span>
+              {rule.label}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+};
 
 export const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -25,6 +81,8 @@ export const RegisterPage = () => {
     phone: '',
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -35,6 +93,12 @@ export const RegisterPage = () => {
       ...prev,
       [e.target.name]: e.target.value,
     }));
+    // Clear error when user starts fixing
+    if (error) setError('');
+  };
+
+  const validatePassword = (pwd) => {
+    return PASSWORD_RULES.every((rule) => rule.test(pwd));
   };
 
   const handleSubmit = async (e) => {
@@ -46,8 +110,8 @@ export const RegisterPage = () => {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (!validatePassword(formData.password)) {
+      setError('Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.');
       return;
     }
 
@@ -75,6 +139,8 @@ export const RegisterPage = () => {
       setLoading(false);
     }
   };
+
+  const allRulesPassed = validatePassword(formData.password);
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12 bg-slate-950">
@@ -195,6 +261,7 @@ export const RegisterPage = () => {
               </div>
             </div>
 
+            {/* Password fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">Password</label>
@@ -203,15 +270,32 @@ export const RegisterPage = () => {
                     <Lock className="w-4 h-4" />
                   </div>
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     name="password"
                     placeholder="••••••••"
                     value={formData.password}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                    className={`w-full pl-10 pr-10 py-2.5 rounded-xl border bg-slate-950 text-slate-100 text-xs focus:outline-none transition ${
+                      formData.password && !allRulesPassed
+                        ? 'border-rose-500/50 focus:border-rose-500'
+                        : formData.password && allRulesPassed
+                        ? 'border-emerald-500/50 focus:border-emerald-500'
+                        : 'border-slate-800 focus:border-blue-500'
+                    }`}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition"
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
+                {/* Strength indicator shown below the password field */}
+                <PasswordStrengthIndicator password={formData.password} />
               </div>
 
               <div>
@@ -221,15 +305,38 @@ export const RegisterPage = () => {
                     <Lock className="w-4 h-4" />
                   </div>
                   <input
-                    type="password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                     required
                     name="confirmPassword"
                     placeholder="••••••••"
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                    className={`w-full pl-10 pr-10 py-2.5 rounded-xl border bg-slate-950 text-slate-100 text-xs focus:outline-none transition ${
+                      formData.confirmPassword && formData.confirmPassword !== formData.password
+                        ? 'border-rose-500/50 focus:border-rose-500'
+                        : formData.confirmPassword && formData.confirmPassword === formData.password
+                        ? 'border-emerald-500/50 focus:border-emerald-500'
+                        : 'border-slate-800 focus:border-blue-500'
+                    }`}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition"
+                    tabIndex={-1}
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
+                {/* Match indicator */}
+                {formData.confirmPassword && (
+                  <p className={`mt-1.5 text-[11px] flex items-center gap-1 ${
+                    formData.confirmPassword === formData.password ? 'text-emerald-400' : 'text-rose-400'
+                  }`}>
+                    <span>{formData.confirmPassword === formData.password ? '✓ Passwords match' : '✗ Passwords do not match'}</span>
+                  </p>
+                )}
               </div>
             </div>
 
