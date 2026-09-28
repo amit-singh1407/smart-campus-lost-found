@@ -9,10 +9,17 @@ notification_bp = Blueprint("notifications", __name__)
 @jwt_required_custom
 def get_notifications():
     db = current_app.db
-    cursor = db.notifications.find({"user_id": g.user_id}).sort("created_at", -1).limit(50)
+    cursor = db.notifications.find({
+        "$or": [
+            {"user_id": g.user_id},
+            {"target_type": "ALL_ACTIVE_STUDENTS"},
+        ]
+    }).sort("created_at", -1).limit(50)
     notifs = []
     for doc in cursor:
         doc["_id"] = str(doc["_id"])
+        if doc.get("target_type") == "ALL_ACTIVE_STUDENTS":
+            doc["read"] = g.user_id in doc.get("read_by", [])
         notifs.append(doc)
     return jsonify({"notifications": notifs}), 200
 
@@ -22,10 +29,20 @@ def get_notifications():
 def mark_read(notif_id):
     db = current_app.db
     try:
-        db.notifications.update_one(
-            {"_id": ObjectId(notif_id), "user_id": g.user_id},
-            {"$set": {"read": True}},
-        )
+        notification = db.notifications.find_one({"_id": ObjectId(notif_id)})
+        if not notification:
+            return jsonify({"message": "Notification not found"}), 404
+
+        if notification.get("target_type") == "ALL_ACTIVE_STUDENTS":
+            db.notifications.update_one(
+                {"_id": notification["_id"]},
+                {"$addToSet": {"read_by": g.user_id}},
+            )
+        else:
+            db.notifications.update_one(
+                {"_id": notification["_id"], "user_id": g.user_id},
+                {"$set": {"read": True}},
+            )
         return jsonify({"message": "Notification marked as read"}), 200
-    except Exception as e:
+    except Exception:
         return jsonify({"message": "Invalid ID format"}), 400

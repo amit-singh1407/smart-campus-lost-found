@@ -7,7 +7,7 @@ import ItemCard from '../../components/ItemCard';
 
 export const MyReportsPage = () => {
   const [reports, setReports] = useState([]);
-  const [filterTab, setFilterTab] = useState('all'); // 'all', 'lost', 'found'
+  const [filterTab, setFilterTab] = useState('all'); // 'all', 'lost', 'found', 'ownership'
   const [loading, setLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState('');
 
@@ -92,6 +92,7 @@ export const MyReportsPage = () => {
   const filteredReports = reports.filter((item) => {
     if (filterTab === 'lost') return item.type === 'lost';
     if (filterTab === 'found') return item.type === 'found';
+    if (filterTab === 'ownership') return item.type === 'ownership_request' || item.status === 'under_review';
     return true;
   });
 
@@ -99,25 +100,10 @@ export const MyReportsPage = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-100">My Submitted Reports</h2>
+          <h2 className="text-2xl font-bold text-slate-100">My Reports</h2>
           <p className="text-xs text-slate-400 mt-1">
-            Manage your lost queries and found submissions with live status tracking.
+            View and track the reports and ownership requests you have submitted.
           </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Link
-            to="/report-lost"
-            className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-md transition"
-          >
-            Report Lost
-          </Link>
-          <Link
-            to="/report-found"
-            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md transition"
-          >
-            Report Found
-          </Link>
         </div>
       </div>
 
@@ -155,6 +141,16 @@ export const MyReportsPage = () => {
           }`}
         >
           Found Items ({reports.filter((r) => r.type === 'found').length})
+        </button>
+        <button
+          onClick={() => setFilterTab('ownership')}
+          className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
+            filterTab === 'ownership'
+              ? 'bg-violet-600 text-white shadow'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Ownership Requests ({reports.filter((r) => r.type === 'ownership_request' || r.status === 'under_review').length})
         </button>
       </div>
 

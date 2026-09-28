@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, g, current_app
 from bson import ObjectId
 from pydantic import ValidationError
-from app.models.schemas import ItemCreateSchema, ItemUpdateSchema
+from app.models.schemas import ItemCreateSchema, ItemUpdateSchema, FoundItemSubmitSchema
 from app.services.item_service import ItemService
 from app.utils.image_uploader import upload_image_file
 from app.middleware.auth import jwt_required_custom
@@ -55,7 +55,7 @@ def get_item(item_id):
 
 @item_bp.post("/search-by-image")
 def search_by_image():
-    """Rank live found-item records against an uploaded image."""
+    """Rank live items against an uploaded image."""
     if "file" not in request.files:
         return jsonify({"message": "No file payload in request"}), 400
 
@@ -63,10 +63,13 @@ def search_by_image():
     if "error" in file_result:
         return jsonify({"message": file_result["error"]}), file_result["status_code"]
 
+    target_type = request.form.get("target_type", "found")
+
     result = ItemService.search_items_by_image(
         file_result["image_hash"],
         page=request.form.get("page", 1),
         limit=request.form.get("limit", 12),
+        target_type=target_type
     )
     return jsonify(result), result["status_code"]
 
@@ -123,6 +126,25 @@ def report_found():
         return jsonify(result), result["status_code"]
     except ValidationError as err:
         return jsonify({"message": "Invalid report input", "errors": err.errors()}), 422
+
+
+@item_bp.post("/found-confirmation")
+@jwt_required_custom
+def submit_found_confirmation():
+    """Submit a confirmation that a specific lost item was found."""
+    try:
+        data = request.get_json() or {}
+        validated = FoundItemSubmitSchema(**data)
+        
+        result = ItemService.submit_found_confirmation(
+            g.user_id,
+            g.user_email,
+            g.user_name,
+            validated.model_dump(),
+        )
+        return jsonify(result), result["status_code"]
+    except ValidationError as err:
+        return jsonify({"message": "Invalid found confirmation input", "errors": err.errors()}), 422
 
 
 @item_bp.get("/my")

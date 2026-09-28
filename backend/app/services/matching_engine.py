@@ -3,6 +3,7 @@ import math
 from datetime import datetime, timezone
 from bson import ObjectId
 from flask import current_app
+from app.utils.email_sender import send_match_notification_email
 
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
@@ -272,6 +273,18 @@ class MatchingEngine:
                         "read": False,
                         "created_at": datetime.now(timezone.utc).isoformat(),
                     })
+                    
+                    lost_user_email = lost_candidate.get("user_email")
+                    lost_user_name = lost_candidate.get("user_name", "Student")
+                    if lost_user_email:
+                        send_match_notification_email(
+                            recipient_email=lost_user_email,
+                            name=lost_user_name,
+                            lost_item_title=lost_candidate.get("title", "Lost Item"),
+                            found_item_title=found_candidate.get("title", "Found Item"),
+                            match_score=score,
+                            match_tier=tier
+                        )
 
                 matches_created += 1
 

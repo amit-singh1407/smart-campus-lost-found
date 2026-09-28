@@ -40,9 +40,9 @@ export const ClaimsPage = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h2 className="text-2xl font-bold text-slate-100">Ownership Claims</h2>
+        <h2 className="text-2xl font-bold text-slate-100">Ownership Requests</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Track the verification process of items you claimed ownership for.
+          Track the verification process for items you believe may be yours.
         </p>
       </div>
 
@@ -64,7 +64,7 @@ export const ClaimsPage = () => {
                     </span>
                   </div>
                   <h3 className="text-base font-bold text-slate-100">
-                    Claim for: {claim.item_title || `Item #${claim.item_id?.substring(0, 8)}`}
+                    Request for: {claim.item_title || `Item #${claim.item_id?.substring(0, 8)}`}
                   </h3>
                 </div>
 
@@ -168,8 +168,8 @@ export const ClaimsPage = () => {
       ) : (
         <EmptyState
           icon={FileCheck2}
-          title="No claims filed yet"
-          description="When you find an item listed in the campus repository that belongs to you, click 'Claim Item' on its detail page."
+          title="No ownership requests yet"
+          description="When you believe an item in the campus repository is yours, use the ownership request option on its detail page."
           action={
             <Link
               to="/browse"

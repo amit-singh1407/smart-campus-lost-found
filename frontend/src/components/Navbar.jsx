@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Compass,
@@ -13,12 +13,37 @@ import {
   Layers,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { claimService } from '../services/itemService';
 
 export const Navbar = () => {
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUnreadNotifications(0);
+      return undefined;
+    }
+
+    let active = true;
+    claimService
+      .getNotifications()
+      .then((res) => {
+        if (active) {
+          setUnreadNotifications((res.notifications || []).filter((notification) => !notification.read).length);
+        }
+      })
+      .catch(() => {
+        if (active) setUnreadNotifications(0);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated]);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-800 bg-slate-950/80 backdrop-blur-xl">
@@ -52,10 +77,10 @@ export const Navbar = () => {
                   Dashboard
                 </Link>
                 <Link
-                  to="/matches"
+                  to="/find-lost-found"
                   className="px-3.5 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors"
                 >
-                  Matches
+                  Find Lost & Found
                 </Link>
                 <Link
                   to="/my-reports"
@@ -100,6 +125,11 @@ export const Navbar = () => {
                   title="Notifications"
                 >
                   <Bell className="w-5 h-5" />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-[9px] leading-4 text-white text-center font-bold">
+                      {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                    </span>
+                  )}
                 </Link>
 
                 {/* User Dropdown */}
@@ -142,11 +172,11 @@ export const Navbar = () => {
                         Profile Settings
                       </Link>
                       <Link
-                        to="/claims"
+                        to="/my-reports"
                         className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-300 hover:bg-slate-800 hover:text-white"
                       >
                         <Layers className="w-4 h-4 text-slate-400" />
-                        My Claims
+                        My Reports
                       </Link>
                       <button
                         onClick={logout}
@@ -223,18 +253,18 @@ export const Navbar = () => {
                   Report Found Item
                 </Link>
                 <Link
-                  to="/matches"
+                  to="/find-lost-found"
                   onClick={() => setMobileMenuOpen(false)}
                   className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800"
                 >
-                  Smart Matches
+                  Find Lost & Found
                 </Link>
                 <Link
-                  to="/claims"
+                  to="/my-reports"
                   onClick={() => setMobileMenuOpen(false)}
                   className="block px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800"
                 >
-                  Claims
+                  My Reports
                 </Link>
                 <Link
                   to="/notifications"

@@ -13,7 +13,7 @@ export const itemService = {
     formData.append('file', file);
     const res = await api.post('/items/upload-image', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': null,
       },
     });
     return res.data;
@@ -30,7 +30,7 @@ export const itemService = {
     formData.append('file', file);
     Object.entries(params).forEach(([key, value]) => formData.append(key, value));
     const res = await api.post('/items/search-by-image', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': null },
     });
     return res.data;
   },
@@ -50,6 +50,12 @@ export const itemService = {
   // Report Found
   async reportFound(data) {
     const res = await api.post('/items/found', data);
+    return res.data;
+  },
+
+  // Submit Found Confirmation (New Flow)
+  async submitFoundConfirmation(data) {
+    const res = await api.post('/items/found-confirmation', data);
     return res.data;
   },
 

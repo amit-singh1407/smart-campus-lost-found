@@ -240,7 +240,7 @@ export const RecoveryAssistantPage = () => {
                               to={`/items/${item._id}`}
                               className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:text-blue-300"
                             >
-                              <span>Claim Item</span>
+                              <span>THIS IS MY ITEM</span>
                               <ArrowRight className="w-3 h-3" />
                             </Link>
                           </div>

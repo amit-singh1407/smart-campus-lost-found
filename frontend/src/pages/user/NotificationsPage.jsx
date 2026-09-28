@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Check, Sparkles, FileCheck2, Info } from 'lucide-react';
+import { Bell, Check, Sparkles, FileCheck2, Info, Megaphone } from 'lucide-react';
 import { claimService } from '../../services/itemService';
 import { LoadingSpinner, EmptyState, Badge } from '../../components/UIComponents';
 
@@ -40,6 +40,8 @@ export const NotificationsPage = () => {
         return <Sparkles className="w-4 h-4 text-blue-400" />;
       case 'claim':
         return <FileCheck2 className="w-4 h-4 text-emerald-400" />;
+      case 'CAMPUS_LOST_ITEM':
+        return <Megaphone className="w-4 h-4 text-rose-400" />;
       default:
         return <Info className="w-4 h-4 text-purple-400" />;
     }
@@ -75,12 +77,17 @@ export const NotificationsPage = () => {
 
               <div className="flex-1 space-y-1">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-100">{notif.title}</h4>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-xs font-bold text-slate-100">{notif.title}</h4>
+                    {notif.type === 'CAMPUS_LOST_ITEM' && (
+                      <Badge variant="danger">Campus alert</Badge>
+                    )}
+                  </div>
                   <span className="text-[10px] text-slate-500">
                     {notif.created_at
-                      ? new Date(notif.created_at).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
+                      ? new Date(notif.created_at).toLocaleDateString([], {
+                          month: 'short',
+                          day: 'numeric',
                         })
                       : 'Just now'}
                   </span>

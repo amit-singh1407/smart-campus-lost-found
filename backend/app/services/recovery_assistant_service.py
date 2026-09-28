@@ -198,9 +198,9 @@ class RecoveryAssistantService:
         # Actionable guidance tips
         guidance_steps = []
         if top_matches:
-            guidance_steps.append("Review the candidate items below and click 'Claim Item' if you recognize yours.")
+            guidance_steps.append("Review the candidate items below and select the one that matches your lost item.")
             guidance_steps.append("Be prepared to answer private verification questions (secret marks, contents, lockscreen details).")
-            guidance_steps.append("Once verified, security will generate a secure QR digital handover pass for pickup.")
+            guidance_steps.append("Once verified, security will coordinate the handover and final return process.")
         else:
             guidance_steps.append("Submit an official Lost Item report with brand, color, and unique identifying marks.")
             guidance_steps.append("Enable Smart Watchlist to receive immediate push notifications if someone turns it in.")

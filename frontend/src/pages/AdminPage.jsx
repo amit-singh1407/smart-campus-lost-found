@@ -23,7 +23,7 @@ function AdminPage() {
     <div className="page-shell">
       <section className="section-block">
         <p className="eyebrow accent">Admin console</p>
-        <h2>Review claims and manage records</h2>
+        <h2>Review ownership requests and manage records</h2>
 
         <div className="stats-grid">
           <div className="stat-card">
@@ -31,7 +31,7 @@ function AdminPage() {
             <strong>{stats.total_users ?? 0}</strong>
           </div>
           <div className="stat-card">
-            <p>Pending claims</p>
+            <p>Pending requests</p>
             <strong>{stats.pending_claims ?? 0}</strong>
           </div>
           <div className="stat-card">
@@ -47,13 +47,13 @@ function AdminPage() {
 
       <section className="section-block">
         <div className="section-heading">
-          <h3>Claim queue</h3>
+          <h3>Ownership request queue</h3>
         </div>
         <div className="list-stack">
           {claims.length ? (
             claims.map((claim) => (
               <div className="list-row" key={claim._id}>
-                <span>Claim: {claim.item_name}</span>
+                <span>Request: {claim.item_name}</span>
                 <span>{claim.status}</span>
                 <button type="button" className="ghost-btn dark small-btn">Review</button>
               </div>

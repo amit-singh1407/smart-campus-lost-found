@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Search,
   PlusCircle,
   PackageSearch,
   Sparkles,
@@ -26,12 +25,10 @@ export const UserLayout = () => {
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'AI Recovery Assistant', path: '/assistant', icon: Sparkles, badge: 'AI' },
-    { name: 'Find Item', path: '/find', icon: Search },
     { name: 'Report Lost Item', path: '/report-lost', icon: PlusCircle, badge: 'Lost' },
     { name: 'Report Found Item', path: '/report-found', icon: PackageSearch, badge: 'Found' },
-    { name: 'Smart Matches', path: '/matches', icon: Sparkles },
+    { name: 'Find Lost & Found', path: '/find-lost-found', icon: Compass },
     { name: 'My Reports', path: '/my-reports', icon: Layers },
-    { name: 'My Claims', path: '/claims', icon: Layers },
     { name: 'Notifications', path: '/notifications', icon: Bell },
     { name: 'Profile & Settings', path: '/profile', icon: User },
   ];

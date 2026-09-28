@@ -13,7 +13,6 @@ import LoginPage from '../pages/public/LoginPage';
 import RegisterPage from '../pages/public/RegisterPage';
 import VerifyEmailPage from '../pages/public/VerifyEmailPage';
 import ForgotPasswordPage from '../pages/public/ForgotPasswordPage';
-import FindItem from '../pages/items/FindItem';
 
 // User Pages
 import DashboardPage from '../pages/user/DashboardPage';
@@ -22,8 +21,6 @@ import ReportLostPage from '../pages/user/ReportLostPage';
 import ReportFoundPage from '../pages/user/ReportFoundPage';
 import ItemDetailsPage from '../pages/user/ItemDetailsPage';
 import MyReportsPage from '../pages/user/MyReportsPage';
-import MatchesPage from '../pages/user/MatchesPage';
-import ClaimsPage from '../pages/user/ClaimsPage';
 import NotificationsPage from '../pages/user/NotificationsPage';
 import ProfilePage from '../pages/user/ProfilePage';
 import RecoveryAssistantPage from '../pages/user/RecoveryAssistantPage';
@@ -92,7 +89,6 @@ export const AppRoutes = () => {
       <Route element={<PublicLayout />}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/browse" element={<BrowsePage />} />
-        <Route path="/find" element={<FindItem />} />
         <Route path="/items/:id" element={<ItemDetailsPage />} />
       </Route>
 
@@ -116,9 +112,8 @@ export const AppRoutes = () => {
         <Route path="/report-lost" element={<ReportLostPage />} />
 
         <Route path="/report-found" element={<ReportFoundPage />} />
+        <Route path="/find-lost-found" element={<BrowsePage />} />
         <Route path="/my-reports" element={<MyReportsPage />} />
-        <Route path="/matches" element={<MatchesPage />} />
-        <Route path="/claims" element={<ClaimsPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>

@@ -5,14 +5,15 @@ import { Badge } from './UIComponents';
 
 export const ItemCard = ({ item }) => {
   const isLost = item.type === 'lost';
+  const imageUrl = item.image_url || item.imageUrl || item.found_image || item.found_image_url || item.image;
 
   return (
     <div className="group rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur-md overflow-hidden hover:border-slate-700 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300 flex flex-col">
       <div className="relative aspect-video w-full bg-slate-950 overflow-hidden">
-        {item.imageUrl ? (
+        {imageUrl ? (
           <img
-            src={item.imageUrl}
-            alt={item.title}
+            src={imageUrl}
+            alt={item.title || 'Item photo'}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import {
   MapPin,
   Calendar,
@@ -9,6 +9,7 @@ import {
   FileCheck2,
   AlertCircle,
   CheckCircle2,
+  Clock,
   Loader2,
   Sparkles,
   Phone,
@@ -20,17 +21,18 @@ import { Badge, LoadingSpinner, EmptyState } from '../../components/UIComponents
 export const ItemDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated } = useAuth();
 
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Claim modal state
+  // Ownership request modal state
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [proofDescription, setProofDescription] = useState('');
-  const [answersToPrivateQuestions, setAnswersToPrivateQuestions] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
+  const [additionalInformation, setAdditionalInformation] = useState('');
+  const [supportingImage, setSupportingImage] = useState('');
   const [claimLoading, setClaimLoading] = useState(false);
   const [claimSuccess, setClaimSuccess] = useState(false);
   const [claimError, setClaimError] = useState('');
@@ -51,6 +53,25 @@ export const ItemDetailsPage = () => {
     fetchItem();
   }, [id]);
 
+  useEffect(() => {
+    if (location.state?.openClaim && item && !isOwner) {
+      setClaimModalOpen(true);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [item, isOwner, location.pathname, location.state, navigate]);
+
+  const handleSupportingImageSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const res = await itemService.uploadImage(file);
+      setSupportingImage(res.url || '');
+    } catch (err) {
+      setClaimError('Could not upload the supporting image. Please try again.');
+    }
+  };
+
   const handleClaimSubmit = async (e) => {
     e.preventDefault();
     if (!isAuthenticated) {
@@ -65,8 +86,8 @@ export const ItemDetailsPage = () => {
       await claimService.createClaim({
         item_id: id,
         proof_description: proofDescription.trim(),
-        answers_to_private_questions: answersToPrivateQuestions.trim(),
-        contact_phone: contactPhone.trim(),
+        additional_information: additionalInformation.trim(),
+        evidence_image_url: supportingImage,
       });
       setClaimSuccess(true);
       setTimeout(() => {
@@ -102,6 +123,7 @@ export const ItemDetailsPage = () => {
 
   const isLost = item.type === 'lost';
   const isOwner = user && (user.id === item.user_id || user.email === item.user_email);
+  const itemImage = item.image_url || item.imageUrl || item.found_image || item.found_image_url || item.image;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -122,10 +144,10 @@ export const ItemDetailsPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left Column: Image / Placeholder */}
         <div className="md:col-span-1 rounded-3xl border border-slate-800 bg-slate-900/60 p-4 flex flex-col items-center justify-center min-h-[280px] overflow-hidden">
-          {item.image_url || item.imageUrl ? (
+          {itemImage ? (
             <img
-              src={item.image_url || item.imageUrl}
-              alt={item.title}
+              src={itemImage}
+              alt={item.title || 'Item photo'}
               className="w-full h-auto rounded-2xl object-cover shadow-lg"
             />
           ) : (
@@ -262,7 +284,7 @@ export const ItemDetailsPage = () => {
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition shadow-lg shadow-blue-600/25"
               >
                 <FileCheck2 className="w-4 h-4" />
-                <span>This is My Item (Submit Claim)</span>
+                <span>THIS IS MY ITEM</span>
               </button>
             )}
 
@@ -281,9 +303,9 @@ export const ItemDetailsPage = () => {
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-900 p-6 sm:p-8 space-y-6 shadow-2xl animate-fade-in">
             <div>
-              <h3 className="text-xl font-bold text-slate-100">Submit Ownership Claim</h3>
+              <h3 className="text-xl font-bold text-slate-100">Ownership Request</h3>
               <p className="text-xs text-slate-400 mt-1">
-                Provide private identifying proof (e.g. unique marks, serial number, lock wallpaper, receipts) so security can verify your ownership.
+                Explain why you believe this item belongs to you and share any supporting information.
               </p>
             </div>
 
@@ -304,45 +326,45 @@ export const ItemDetailsPage = () => {
             <form onSubmit={handleClaimSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Detailed Ownership Proof & Evidence *
+                  Why do you believe this item belongs to you?
                 </label>
                 <textarea
                   required
                   rows={3}
                   value={proofDescription}
                   onChange={(e) => setProofDescription(e.target.value)}
-                  placeholder="Describe secret marks, stickers, engravings, or circumstances only you would know..."
+                  placeholder="Explain the reason this item is yours..."
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
                 />
               </div>
 
-              {/* Private Verification Field */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  🔐 Answer to Private Identifying Markers (Anti-Fraud Check)
+                  Additional information:
                 </label>
                 <textarea
                   rows={2}
-                  value={answersToPrivateQuestions}
-                  onChange={(e) => setAnswersToPrivateQuestions(e.target.value)}
-                  placeholder="e.g. Phone wallpaper image, specific scratches, bill details, or locker code..."
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-purple-500"
+                  value={additionalInformation}
+                  onChange={(e) => setAdditionalInformation(e.target.value)}
+                  placeholder="Add any extra detail that supports your request."
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Callback Phone Number (Optional)
+                  Upload supporting image (Optional)
                 </label>
                 <input
-                  type="tel"
-                  placeholder="+1 (555) 000-0000"
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleSupportingImageSelect}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
                 />
+                {supportingImage && (
+                  <img src={supportingImage} alt="Supporting evidence" className="mt-3 w-24 h-24 rounded-xl object-cover border border-slate-700" />
+                )}
               </div>
-
 
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
@@ -357,7 +379,7 @@ export const ItemDetailsPage = () => {
                   disabled={claimLoading || claimSuccess}
                   className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition shadow-lg shadow-blue-600/25 flex items-center gap-2 disabled:opacity-50"
                 >
-                  {claimLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit Claim'}
+                  {claimLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit Request'}
                 </button>
               </div>
             </form>

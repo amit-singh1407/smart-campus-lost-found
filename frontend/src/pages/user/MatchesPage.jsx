@@ -29,11 +29,11 @@ export const MatchesPage = () => {
       <div>
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold mb-2">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>AI & Rule-Based Match Engine</span>
+          <span>AI & Rule-Based Review</span>
         </div>
-        <h2 className="text-2xl font-bold text-slate-100">Smart Match Detection</h2>
+        <h2 className="text-2xl font-bold text-slate-100">Related Item Reports</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Automated comparison between your lost items and items turned into campus custody.
+          Campus reports that may match your lost item description and require a quick review.
         </p>
       </div>
 
@@ -58,9 +58,10 @@ export const MatchesPage = () => {
 
                 <Link
                   to={`/items/${match.found_item_id || match.found_item?._id}`}
+                  state={{ openClaim: true }}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md transition self-start"
                 >
-                  <span>Review & Claim Item</span>
+                  <span>Review Related Report</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>

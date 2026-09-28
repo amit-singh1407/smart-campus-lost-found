@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   Compass,
-  Search,
   PlusCircle,
   PackageSearch,
   ShieldCheck,
@@ -49,13 +48,6 @@ export const LandingPage = () => {
           >
             <PackageSearch className="w-4 h-4" />
             <span>I Found an Item</span>
-          </Link>
-          <Link
-            to="/find"
-            className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-200 font-semibold transition text-sm"
-          >
-            <Search className="w-4 h-4 text-slate-400" />
-            <span>Find Your Item</span>
           </Link>
         </div>
       </section>

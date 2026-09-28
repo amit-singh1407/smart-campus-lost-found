@@ -63,7 +63,7 @@ export const DashboardPage = () => {
             Hello, {user?.name || dashboardData?.user?.name || 'Student'} 👋
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 max-w-xl leading-relaxed">
-            Welcome to your campus lost and found control center. Submit new reports, check smart match notifications, and track your claims securely.
+            Welcome to your campus lost and found control center. Submit new reports, review notifications, and track your active item requests in one place.
           </p>
         </div>
 
@@ -100,20 +100,20 @@ export const DashboardPage = () => {
           color="emerald"
         />
         <StatCard
-          title="Possible Matches"
-          value={stats.matches_count}
+          title="Reports Tracking"
+          value={stats.matches_count + stats.pending_claims_count}
           icon={Sparkles}
           color="blue"
         />
         <StatCard
-          title="Active Claims"
-          value={stats.pending_claims_count}
+          title="Notifications"
+          value={stats.unread_notifications_count || 0}
           icon={Layers}
           color="purple"
         />
       </div>
 
-      {/* Matches Alert Box if any strong matches exist */}
+      {/* Related report alert if candidate items are detected */}
       {matches.length > 0 && (
         <div className="p-5 rounded-3xl border border-blue-500/30 bg-blue-500/5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -122,18 +122,18 @@ export const DashboardPage = () => {
             </div>
             <div>
               <h4 className="text-sm font-bold text-slate-100">
-                {matches.length} Smart {matches.length === 1 ? 'Match' : 'Matches'} Detected
+                {matches.length} Related {matches.length === 1 ? 'Report' : 'Reports'} Found
               </h4>
               <p className="text-xs text-slate-400 mt-0.5">
-                Our AI matching algorithm found candidate items matching your lost reports.
+                Campus listings may match your lost item description and are ready to review.
               </p>
             </div>
           </div>
           <Link
-            to="/matches"
+            to="/browse"
             className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow transition whitespace-nowrap"
           >
-            Review Matches
+            Check Related Reports
           </Link>
         </div>
       )}

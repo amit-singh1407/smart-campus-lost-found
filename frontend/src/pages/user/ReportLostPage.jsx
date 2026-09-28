@@ -128,7 +128,10 @@ export const ReportLostPage = () => {
         setFormData((prev) => ({ ...prev, imageUrl: res.url, imageHash: res.image_hash || '' }));
       }
     } catch (err) {
-      setError('Image upload failed. You can still submit report without image or provide URL.');
+      setError('Image upload failed. Please try again or submit without an image.');
+      setImageFile(null);
+      setImagePreview('');
+      setFormData((prev) => ({ ...prev, imageUrl: '', imageHash: '' }));
     } finally {
       setUploadingImage(false);
     }

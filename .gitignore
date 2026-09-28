@@ -20,6 +20,19 @@ dist/
 build/
 .eggs/
 
+# Python caches and local environment files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+.env.*
+!.env.example
+
+# Local image files used for manual testing
+test.jpg
+test.png
+test_image.jpg
+
 # ─── OS & Editor ────────────────────────────────────────────────────────────
 .vscode/
 .idea/

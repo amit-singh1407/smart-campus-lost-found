@@ -5,12 +5,22 @@ from bson import ObjectId
 from flask import current_app
 from app.services.audit_service import record_audit_log
 from app.services.matching_engine import MatchingEngine
+from app.services.notification_service import NotificationService
 
 
 class ItemService:
     @staticmethod
     def _public_item(doc: dict):
         """Return only fields safe for public discovery and claim review, concealing private markers."""
+        image_url = (
+            doc.get("image_url")
+            or doc.get("imageUrl")
+            or doc.get("found_image_url")
+            or doc.get("found_image")
+            or doc.get("image")
+            or ""
+        )
+
         return {
             "_id": str(doc["_id"]),
             "title": doc.get("title", ""),
@@ -27,20 +37,27 @@ class ItemService:
             "storage_status": doc.get("storage_status", "SAFE_STORAGE" if doc.get("type") == "found" else ""),
             "storage_id": doc.get("storage_id", ""),
             "is_high_value": doc.get("is_high_value", False),
-            "image_url": doc.get("image_url", ""),
-            "imageUrl": doc.get("image_url", ""),
+            "image_url": image_url,
+            "imageUrl": image_url,
+            "found_image": doc.get("found_image") or doc.get("found_image_url") or image_url,
+            "found_image_url": doc.get("found_image_url") or doc.get("found_image") or image_url,
             "type": doc.get("type"),
             "status": doc.get("status", "open"),
             "has_verification_questions": bool(doc.get("private_verification_questions")),
             "custody_events": doc.get("custody_events", []),
             "created_at": doc.get("created_at"),
             "updated_at": doc.get("updated_at"),
+            # New fields for Found Item Recovery Flow
+            "matched_lost_item_id": doc.get("matched_lost_item_id"),
+            "delivery_method": doc.get("delivery_method"),
+            "delivery_status": doc.get("delivery_status"),
+            "reference_id": doc.get("reference_id"),
         }
 
 
     @staticmethod
-    def search_items_by_image(image_hash: str, page=1, limit=12):
-        """Rank found items by perceptual-hash similarity without exposing hashes."""
+    def search_items_by_image(image_hash: str, page=1, limit=12, target_type="found"):
+        """Rank items by perceptual-hash similarity without exposing hashes."""
         db = current_app.db
         try:
             page = max(1, int(page))
@@ -49,7 +66,7 @@ class ItemService:
             page, limit = 1, 12
 
         candidates = db.items.find({
-            "type": "found",
+            "type": target_type,
             "status": {"$in": ["open", "matched"]},
             "image_hash": {"$exists": True, "$ne": ""},
         })
@@ -151,10 +168,148 @@ class ItemService:
             db.items.update_one({"_id": ObjectId(item_id)}, {"$set": {"status": "matched"}})
             item_doc["status"] = "matched"
 
+        # Campus-wide lost item awareness: a single global alert for active verified students
+        if data["type"] == "lost":
+            try:
+                campus_alert = NotificationService.create_campus_lost_item_alert(item_doc)
+                campus_alert["created_at"] = datetime.now(timezone.utc).isoformat()
+                campus_alert["status"] = "ACTIVE"
+                campus_alert["target_type"] = "ALL_ACTIVE_STUDENTS"
+                db.notifications.insert_one(campus_alert)
+            except Exception:
+                pass
+
         return {
             "message": "Report published successfully",
             "item": item_doc,
             "matches_found": matches_found,
+            "status_code": 201,
+        }
+
+    @staticmethod
+    def submit_found_confirmation(user_id: str, user_email: str, user_name: str, data: dict):
+        db = current_app.db
+
+        try:
+            lost_item_id = ObjectId(data["matched_lost_item_id"])
+        except (KeyError, TypeError, ValueError):
+            return {"error": "Invalid lost item ID", "status_code": 400}
+
+        lost_item = db.items.find_one({
+            "_id": lost_item_id,
+            "type": "lost",
+            "status": {"$in": ["open", "matched"]},
+        })
+        if not lost_item:
+            return {"error": "That lost report is no longer active", "status_code": 404}
+
+        existing_confirmation = db.items.find_one({
+            "type": "found",
+            "matched_lost_item_id": str(lost_item_id),
+            "found_by": str(user_id),
+            "delivery_status": {"$in": [
+                "WAITING_FOR_DELIVERY", "CURRENTLY_WITH_FINDER", "RECEIVED",
+                "SECURED", "STORED", "CLAIM_PENDING", "READY_FOR_COLLECTION",
+            ]},
+        })
+        if existing_confirmation:
+            return {
+                "error": "You have already reported finding this item",
+                "status_code": 409,
+            }
+
+        # Reference ID logic: e.g., FOUND-2026-00452
+        # Let's generate a unique reference ID.
+        reference_id = f"FOUND-{datetime.now(timezone.utc).year}-{secrets.randbelow(100000):05d}"
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        item_doc = {
+            "type": "found",
+            "item_type": "FOUND",
+            # Copy only public lost-report fields. Private verification data stays
+            # on the original lost report and is never copied to the found record.
+            "title": lost_item.get("title", "Reported Lost Item"),
+            "category": lost_item.get("category", "Others"),
+            "brand": lost_item.get("brand", ""),
+            "color": lost_item.get("color", ""),
+            "location": lost_item.get("location", "Campus"),
+            "date": lost_item.get("date"),
+            "description": lost_item.get("description", ""),
+            "image_url": lost_item.get("image_url", ""),
+            "matched_lost_item_id": str(lost_item_id),
+            "found_by": str(user_id),
+            "found_by_email": user_email,
+            "found_by_name": user_name,
+            "found_location": data.get("found_location"),
+            "found_at": data.get("found_at") or datetime.now(timezone.utc).isoformat(),
+            "found_image": data.get("found_image"),
+            "delivery_method": data.get("delivery_method"),
+            "delivery_status": "WAITING_FOR_DELIVERY" if data.get("delivery_method") == "LOST_FOUND_CENTER" else "CURRENTLY_WITH_FINDER",
+            "received_by_admin": None,
+            "received_at": None,
+            "storage_location": None,
+            "status": "open",
+            "reference_id": reference_id,
+            "user_id": str(user_id),
+            "user_email": user_email,
+            "user_name": user_name,
+            "created_at": now_iso,
+            "updated_at": now_iso,
+            "custody_events": [{
+                "event": "FOUND_CONFIRMATION_SUBMITTED",
+                "actor_id": str(user_id),
+                "actor_name": user_name,
+                "location_details": data.get("found_location"),
+                "timestamp": now_iso,
+            }],
+        }
+
+        res = db.items.insert_one(item_doc)
+        item_doc["_id"] = str(res.inserted_id)
+
+        match_entry = {
+            "lost_item_id": str(lost_item_id),
+            "found_item_id": item_doc["_id"],
+            "similarity_score": 100,
+            "match_tier": "possible",
+            "source": "found_confirmation",
+            "created_at": now_iso,
+        }
+        db.matches.update_one(
+            {"lost_item_id": str(lost_item_id), "found_item_id": item_doc["_id"]},
+            {"$set": match_entry},
+            upsert=True,
+        )
+
+        owner_id = lost_item.get("user_id")
+        if owner_id and owner_id != str(user_id):
+            db.notifications.update_one(
+                {
+                    "user_id": owner_id,
+                    "type": "match",
+                    "lost_item_id": str(lost_item_id),
+                    "found_item_id": item_doc["_id"],
+                },
+                {"$setOnInsert": {
+                    "title": "Possible Match Found",
+                    "message": "An item matching your lost report has been reported as found. Open your possible matches to review it.",
+                    "read": False,
+                    "created_at": now_iso,
+                }},
+                upsert=True,
+            )
+
+        record_audit_log(
+            "FOUND_CONFIRMATION_SUBMITTED",
+            user_id,
+            user_email,
+            f"Submitted found confirmation for lost item {lost_item_id} with reference {reference_id}",
+        )
+
+        return {
+            "message": "Found item confirmation submitted successfully",
+            "item": item_doc,
+            "reference_id": reference_id,
             "status_code": 201,
         }
 
@@ -185,7 +340,11 @@ class ItemService:
 
         # Status filter
         if filter_params.get("status") and filter_params["status"] != "all":
-            query["status"] = filter_params["status"]
+            query["status"] = (
+                {"$in": ["open", "matched"]}
+                if filter_params["status"] == "active"
+                else filter_params["status"]
+            )
 
         # Date range filter
         if filter_params.get("date_from") or filter_params.get("date_to"):
@@ -273,15 +432,46 @@ class ItemService:
                     "status_code": 403,
                 }
 
-            cleaned_updates = {k: v for k, v in update_data.items() if v is not None}
-            cleaned_updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+            if existing.get("type") == "found" and "delivery_status" in update_data:
+                if not is_admin:
+                    return {"error": "Only an administrator can update custody status.", "status_code": 403}
 
-            db.items.update_one(query, {"$set": cleaned_updates})
+                allowed_transitions = {
+                    "WAITING_FOR_DELIVERY": {"RECEIVED"},
+                    "CURRENTLY_WITH_FINDER": {"RECEIVED"},
+                    "RECEIVED": {"SECURED"},
+                    "SECURED": {"STORED"},
+                    "STORED": {"CLAIM_PENDING", "READY_FOR_COLLECTION"},
+                    "CLAIM_PENDING": {"READY_FOR_COLLECTION"},
+                    "READY_FOR_COLLECTION": {"RETURNED"},
+                    "RETURNED": {"CLOSED"},
+                }
+                current_status = existing.get("delivery_status")
+                next_status = update_data["delivery_status"]
+                if next_status != current_status and next_status not in allowed_transitions.get(current_status, set()):
+                    return {
+                        "error": f"Invalid custody transition from {current_status} to {next_status}.",
+                        "status_code": 422,
+                    }
+
+            now_iso = datetime.now(timezone.utc).isoformat()
+            cleaned_updates = {k: v for k, v in update_data.items() if v is not None}
+            cleaned_updates["updated_at"] = now_iso
+
+            update_operations = {"$set": cleaned_updates}
+            if existing.get("type") == "found" and "delivery_status" in update_data and update_data["delivery_status"] != existing.get("delivery_status"):
+                update_operations["$push"] = {"custody_events": {
+                    "event": f"FOUND_{update_data['delivery_status']}",
+                    "actor_id": str(user_id),
+                    "timestamp": now_iso,
+                }}
+            db.items.update_one(query, update_operations)
 
             updated_doc = db.items.find_one({"_id": ObjectId(item_id)})
             updated_doc["_id"] = str(updated_doc["_id"])
 
-            record_audit_log("ITEM_UPDATED", user_id, None, f"Updated item ID: {item_id}")
+            audit_action = "FOUND_CUSTODY_UPDATED" if existing.get("type") == "found" and "delivery_status" in update_data else "ITEM_UPDATED"
+            record_audit_log(audit_action, user_id, None, f"Updated item ID: {item_id}; changes: {cleaned_updates}")
             return {
                 "message": "Item report updated successfully",
                 "item": updated_doc,

@@ -53,6 +53,17 @@ class ItemCreateSchema(BaseModel):
     image_url: Optional[str] = ""
     image_hash: Optional[str] = ""
     type: str = Field(..., pattern="^(lost|found)$")
+    
+    # New fields for Found Item Recovery Flow
+    matched_lost_item_id: Optional[str] = None
+    found_by: Optional[str] = None
+    found_location: Optional[str] = None
+    found_at: Optional[str] = None
+    found_image: Optional[str] = None
+    delivery_method: Optional[str] = None
+    delivery_status: Optional[str] = None
+    received_by_admin: Optional[str] = None
+    received_at: Optional[str] = None
 
 
 class ItemUpdateSchema(BaseModel):
@@ -72,6 +83,24 @@ class ItemUpdateSchema(BaseModel):
     image_url: Optional[str] = None
     image_hash: Optional[str] = None
     status: Optional[str] = None
+    
+    # New fields for Found Item Recovery Flow
+    matched_lost_item_id: Optional[str] = None
+    found_by: Optional[str] = None
+    found_location: Optional[str] = None
+    found_at: Optional[str] = None
+    found_image: Optional[str] = None
+    delivery_method: Optional[str] = None
+    delivery_status: Optional[str] = None
+    received_by_admin: Optional[str] = None
+    received_at: Optional[str] = None
+
+class FoundItemSubmitSchema(BaseModel):
+    matched_lost_item_id: str
+    found_location: str
+    delivery_method: str = Field(..., pattern="^(LOST_FOUND_CENTER|CURRENTLY_HAVE_IT)$")
+    found_image: Optional[str] = None
+    found_at: Optional[datetime] = None
 
 
 class ClaimCreateSchema(BaseModel):

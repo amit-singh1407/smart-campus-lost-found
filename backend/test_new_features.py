@@ -4,6 +4,7 @@ from app.services.recovery_assistant_service import RecoveryAssistantService
 from app.services.report_quality_service import ReportQualityService
 from app.services.claim_service import ClaimService
 from app.services.item_service import ItemService
+from app.services.notification_service import NotificationService
 
 
 class TestNewFeatures(unittest.TestCase):
@@ -83,6 +84,44 @@ class TestNewFeatures(unittest.TestCase):
         self.assertEqual(public_view["storage_locker"], "Locker 4")
         self.assertTrue(public_view["has_verification_questions"])
         self.assertTrue(public_view["is_high_value"])
+
+    def test_public_item_image_fallback_and_normalization(self):
+        found_item = {
+            "_id": "60d5ec49f1b2c82d88c8e112",
+            "title": "Black Backpack",
+            "type": "found",
+            "found_image": "https://res.cloudinary.com/demo/found.jpg",
+            "location": "Central Library",
+        }
+        public_found = ItemService._public_item(found_item)
+        self.assertEqual(public_found["image_url"], "https://res.cloudinary.com/demo/found.jpg")
+        self.assertEqual(public_found["imageUrl"], "https://res.cloudinary.com/demo/found.jpg")
+
+        legacy_lost_item = {
+            "_id": "60d5ec49f1b2c82d88c8e113",
+            "title": "MacBook Air",
+            "type": "lost",
+            "imageUrl": "https://res.cloudinary.com/demo/lost.jpg",
+            "location": "Central Library",
+        }
+        public_lost = ItemService._public_item(legacy_lost_item)
+        self.assertEqual(public_lost["image_url"], "https://res.cloudinary.com/demo/lost.jpg")
+        self.assertEqual(public_lost["imageUrl"], "https://res.cloudinary.com/demo/lost.jpg")
+
+    def test_campus_lost_item_alert_creation(self):
+        alert = NotificationService.create_campus_lost_item_alert({
+            "_id": "lost_item_123",
+            "title": "Black Backpack",
+            "location": "Central Library",
+            "date": "2026-09-24",
+            "image_url": "https://res.cloudinary.com/demo/backpack.jpg",
+            "reference_id": "LOST-2026-10234",
+        })
+
+        self.assertEqual(alert["type"], "CAMPUS_LOST_ITEM")
+        self.assertEqual(alert["target_type"], "ALL_ACTIVE_STUDENTS")
+        self.assertIn("Black Backpack", alert["message"])
+        self.assertEqual(alert["reference_id"], "LOST-2026-10234")
 
 
 if __name__ == "__main__":
