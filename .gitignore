@@ -41,6 +41,10 @@ Thumbs.db
 *.swp
 *.swo
 *~
+.history/
+.vscode-test/
+*.tmp
+*.bak
 
 # ─── Test / Debug artifacts ─────────────────────────────────────────────────
 .pytest_cache/
