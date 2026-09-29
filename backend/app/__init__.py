@@ -127,6 +127,14 @@ def create_app() -> CampusFlask:
     # --------------------------------------------------
     # Health Check
     # --------------------------------------------------
+    @app.get("/")
+    def api_root():
+        return {
+            "status": "ok",
+            "message": "Smart Campus Lost & Found API is running.",
+            "health_check": "/health",
+        }
+
     @app.get("/health")
     def health_check():
         return {
