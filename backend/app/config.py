@@ -18,14 +18,14 @@ class Config:
     JWT_COOKIE_SECURE = False
     JWT_COOKIE_SAMESITE = "Lax"
 
-    CORS_ORIGINS = [
-        origin.strip()
-        for origin in os.getenv(
-            "CORS_ORIGINS",
-            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,https://*.vercel.app",
-        ).split(",")
-        if origin.strip()
-    ]
+    # CORS_ORIGINS = [
+    #     origin.strip()
+    #     for origin in os.getenv(
+    #         "CORS_ORIGINS",
+    #         "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,https://*.vercel.app",
+    #     ).split(",")
+    #     if origin.strip()
+    # ]
 
     PHOTO_MATCH_THRESHOLD = int(os.getenv("PHOTO_MATCH_THRESHOLD", "100"))
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", 16 * 1024 * 1024))
@@ -42,6 +42,9 @@ class Config:
     EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
     EMAIL_USERNAME = os.getenv("EMAIL_USERNAME", "")
     EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
-    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    FRONTEND_URL = os.getenv(
+        "FRONTEND_URL",
+        "http://localhost:5173"
+    )   
 
-    DEBUG = os.getenv("DEBUG", "True").lower() == "true"
+    DEBUG = os.getenv("DEBUG", "False").lower() == "true"

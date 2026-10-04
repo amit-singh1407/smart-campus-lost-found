@@ -31,15 +31,29 @@ def create_app() -> CampusFlask:
     # --------------------------------------------------
     # CORS Configuration
     # --------------------------------------------------
-    origins = app.config.get("CORS_ORIGINS", ["*"])
+    frontend_url = app.config["FRONTEND_URL"].rstrip("/")
+
+    allowed_origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        frontend_url,
+    ]
+
+    # remove duplicates
+    allowed_origins = list(set(allowed_origins))
+
     CORS(
         app,
         resources={
             r"/api/*": {
-                "origins": origins + [r"https:\/\/.*\.vercel\.app"]
+                "origins": allowed_origins,
+                "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+                "allow_headers": ["Content-Type", "Authorization"],
+                "supports_credentials": True,
             }
         },
-        supports_credentials=True,
     )
 
     # --------------------------------------------------
