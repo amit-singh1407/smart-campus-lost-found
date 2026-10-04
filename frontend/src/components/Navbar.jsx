@@ -58,7 +58,7 @@ export const Navbar = () => {
             />
             <div className="flex flex-col">
               <span className="text-base font-bold text-slate-100 tracking-tight flex items-center gap-1.5">
-                Smart Campus <span className="text-blue-400 font-semibold">Lost&Found</span>
+                Smart Campus
               </span>
               <span className="text-[10px] text-slate-400 tracking-wider uppercase font-medium">
                 University Portal

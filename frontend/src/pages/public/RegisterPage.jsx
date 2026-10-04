@@ -29,12 +29,15 @@ const PasswordStrengthIndicator = ({ password }) => {
   if (!password) return null;
 
   const passed = PASSWORD_RULES.filter((r) => r.test(password)).length;
-  const strength = passed <= 1 ? 'Weak' : passed <= 3 ? 'Fair' : passed === 4 ? 'Good' : 'Strong';
+  // Once the password satisfies all requirements, the temporary checklist disappears
+  if (passed === PASSWORD_RULES.length) return null;
+
+  const strength = passed <= 1 ? 'Weak' : passed <= 3 ? 'Fair' : 'Good';
   const colors = ['bg-rose-500', 'bg-orange-400', 'bg-yellow-400', 'bg-blue-400', 'bg-emerald-500'];
   const textColors = ['text-rose-400', 'text-orange-400', 'text-yellow-400', 'text-blue-400', 'text-emerald-400'];
 
   return (
-    <div className="mt-2 space-y-2">
+    <div className="mt-2 space-y-2 animate-fade-in">
       {/* Strength bar */}
       <div className="flex gap-1">
         {Array.from({ length: 5 }).map((_, i) => (
@@ -76,7 +79,6 @@ export const RegisterPage = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    studentId: '',
     department: '',
     phone: '',
   });
@@ -111,7 +113,7 @@ export const RegisterPage = () => {
     }
 
     if (!validatePassword(formData.password)) {
-      setError('Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.');
+      setError('Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character (e.g. Campus@2026).');
       return;
     }
 
@@ -122,7 +124,6 @@ export const RegisterPage = () => {
         name: formData.name.trim(),
         email: formData.email.trim(),
         password: formData.password,
-        student_id: formData.studentId.trim(),
         department: formData.department.trim(),
         phone: formData.phone.trim(),
       };
@@ -175,7 +176,9 @@ export const RegisterPage = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Full Name</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Full Name <span className="text-rose-400">*</span>
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
                   <User className="w-4 h-4" />
@@ -192,59 +195,53 @@ export const RegisterPage = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">College Email</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <Mail className="w-4 h-4" />
-                  </div>
-                  <input
-                    type="email"
-                    required
-                    name="email"
-                    placeholder="yourname@college.edu"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
-                  />
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                College Email <span className="text-rose-400">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <Mail className="w-4 h-4" />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Student / Staff ID</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <School className="w-4 h-4" />
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    name="studentId"
-                    placeholder="e.g. CS2026-908"
-                    value={formData.studentId}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
-                  />
-                </div>
+                <input
+                  type="email"
+                  required
+                  name="email"
+                  placeholder="yourname@college.edu"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Department / Major</label>
-                <input
-                  type="text"
-                  name="department"
-                  placeholder="Computer Science"
-                  value={formData.department}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
-                />
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Department / Major <span className="text-slate-500 font-normal">(Optional)</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                    <School className="w-4 h-4" />
+                  </div>
+                  <select
+                    name="department"
+                    value={formData.department}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Select Department / Major</option>
+                    <option value="BBDU">BBDU</option>
+                    <option value="BBDNITM">BBDNITM</option>
+                    <option value="BBDEC">BBDEC</option>
+                  </select>
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Phone Number</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Phone Number <span className="text-slate-500 font-normal">(Optional)</span>
+                </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
                     <Phone className="w-4 h-4" />
@@ -367,6 +364,14 @@ export const RegisterPage = () => {
               </Link>
             </p>
           </div>
+
+          <Link
+            to="/"
+            className="mt-4 inline-flex w-full items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-white transition"
+          >
+            <span aria-hidden="true">&lt;-</span>
+            <span>Back to Home</span>
+          </Link>
         </div>
       </div>
     </div>

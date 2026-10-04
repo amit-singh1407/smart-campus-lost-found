@@ -165,7 +165,7 @@ def run_system_tests():
 
     resolve_res = client.patch(
         f"/api/v1/admin/claims/{claim_id}/resolve",
-        json={"decision": "approved", "notes": "Proof verified with security locker inspection. Ready for pickup at Security Desk Building A."},
+        json={"decision": "approved", "ownership_verified": True, "notes": "Proof verified with security locker inspection. Ready for pickup at Security Desk Building A."},
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert resolve_res.status_code == 200

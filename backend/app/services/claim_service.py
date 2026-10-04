@@ -94,7 +94,11 @@ class ClaimService:
 
         priority_info = ClaimService._calculate_claim_priority(item, data)
 
+        reference_id = f"REQ-{datetime.now(timezone.utc).year}-{secrets.randbelow(90000) + 10000:05d}"
+        now_iso = datetime.now(timezone.utc).isoformat()
+
         claim_doc = {
+            "reference_id": reference_id,
             "item_id": item_id,
             "item_title": item.get("title", ""),
             "item_category": item.get("category", ""),
@@ -107,30 +111,34 @@ class ClaimService:
             "user_name": user_name,
             "proof_description": data["proof_description"].strip(),
             "contact_phone": data.get("contact_phone", ""),
+            "supporting_image_url": data.get("supporting_image_url") or data.get("evidence_image_url", ""),
+            "additional_information": data.get("additional_information", "").strip(),
             "answers_to_private_questions": data.get("answers_to_private_questions", "").strip(),
             "priority_score": priority_info["priority_score"],
             "priority_tier": priority_info["priority_tier"],
             "fraud_risk": priority_info["fraud_risk"],
             "priority_reasons": priority_info["priority_reasons"],
-            "status": "pending",  # 'pending', 'approved', 'rejected', 'completed'
+            "status": "UNDER_REVIEW",  # 'UNDER_REVIEW', 'approved', 'rejected', 'completed'
             "admin_notes": "",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": now_iso,
+            "updated_at": now_iso,
         }
 
         res = db.claims.insert_one(claim_doc)
         claim_id = str(res.inserted_id)
 
         record_audit_log(
-            "CLAIM_SUBMITTED",
+            "OWNERSHIP_REQUEST_SUBMITTED",
             user_id,
             user_email,
-            f"Submitted claim for item ID: {item_id} (Priority: {priority_info['priority_tier']})",
+            f"Submitted ownership request {reference_id} for item ID: {item_id}",
         )
 
         return {
-            "message": "Claim submitted successfully for review",
+            "message": "Ownership request submitted successfully under review",
             "claim_id": claim_id,
+            "reference_id": reference_id,
+            "status": "UNDER_REVIEW",
             "priority_tier": priority_info["priority_tier"],
             "status_code": 201,
         }
@@ -147,84 +155,199 @@ class ClaimService:
         return {"claims": claims, "status_code": 200}
 
     @staticmethod
-    def resolve_claim(claim_id: str, decision: str, notes: str, admin_user: dict):
+    def resolve_claim(claim_id: str, decision: str, notes: str, ownership_verified: bool, admin_user: dict):
         db = current_app.db
         try:
             claim = db.claims.find_one({"_id": ObjectId(claim_id)})
             if not claim:
                 return {"error": "Claim not found", "status_code": 404}
 
+            decision_norm = "approved" if decision.lower() in ["approved", "resolve"] else decision.lower()
+            if decision_norm == "approved" and not ownership_verified:
+                return {
+                    "error": "Admin ownership verification is required before resolving a claim.",
+                    "status_code": 400,
+                }
+            now_iso = datetime.now(timezone.utc).isoformat()
+
             db.claims.update_one(
                 {"_id": ObjectId(claim_id)},
                 {
                     "$set": {
-                        "status": decision,
+                        "status": decision_norm,
                         "admin_notes": notes.strip(),
                         "resolved_by": admin_user.get("email"),
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": now_iso,
                     }
                 },
             )
 
-            handover_url = None
-            raw_token = None
-            if decision == "approved":
-                raw_token = secrets.token_urlsafe(32)
-                token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-                handover_url = f"/api/v1/admin/collection/verify?token={raw_token}"
-                now = datetime.now(timezone.utc).isoformat()
+            item = db.items.find_one({"_id": ObjectId(claim["item_id"])}) or {}
+            ref_id = item.get("reference_id") or claim.get("reference_id") or f"REF-{claim_id[:8]}"
+            item_title = item.get("title") or claim.get("item_title", "item")
+
+            if decision_norm == "approved":
                 db.items.update_one(
                     {"_id": ObjectId(claim["item_id"])},
                     {
                         "$set": {
                             "status": "ready_for_collection",
                             "storage_status": "READY_FOR_COLLECTION",
-                            "handover_claim_id": claim_id,
-                            "handover_token_hash": token_hash,
-                            "handover_expires_at": (datetime.now(timezone.utc) + timedelta(hours=48)).replace(microsecond=0).isoformat(),
+                            "delivery_status": "READY_FOR_COLLECTION",
+                            "verified_owner_id": claim["user_id"],
+                            "resolved_at": now_iso,
                         },
                         "$push": {"custody_events": {
-                            "event": "CLAIM_APPROVED",
+                            "event": "OWNERSHIP_APPROVED",
                             "actor_id": admin_user.get("id"),
                             "actor_name": admin_user.get("email"),
-                            "timestamp": now,
+                            "notes": notes,
+                            "timestamp": now_iso,
                         }},
                     },
                 )
 
-                # Store handover token on claim so user can render the dynamic QR Code
-                db.claims.update_one(
-                    {"_id": ObjectId(claim_id)},
-                    {"$set": {
-                        "handover_token": raw_token,
-                        "handover_expires_at": (datetime.now(timezone.utc) + timedelta(hours=48)).replace(microsecond=0).isoformat(),
-                        "collection_location": "Central Campus Security Desk (Building A, Room 102)",
-                    }}
+                # Send personal resolution notification to the student
+                db.notifications.insert_one({
+                    "user_id": claim["user_id"],
+                    "type": "CASE_RESOLVED",
+                    "title": "Lost Item Resolved",
+                    "message": f"Your lost {item_title} has been verified by the Lost & Found administrator. Reference: {ref_id}",
+                    "reference_id": ref_id,
+                    "item_id": str(claim["item_id"]),
+                    "read": False,
+                    "created_at": now_iso,
+                })
+
+                record_audit_log(
+                    "CASE_RESOLVED",
+                    admin_user.get("id"),
+                    admin_user.get("email"),
+                    f"Resolved ownership case for item {item_title} (Ref: {ref_id})",
                 )
 
-            # Send notification to claimant
-            db.notifications.insert_one({
-                "user_id": claim["user_id"],
-                "type": "claim",
-                "title": f"Claim Decision: {decision.capitalize()}",
-                "message": f"Your claim for '{claim.get('item_title')}' was {decision}. Note: {notes or 'No notes provided'}"
-                    + (f" Handover link: {handover_url}" if handover_url else ""),
-                "handover_url": handover_url,
-                "read": False,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            })
+            elif decision_norm == "rejected":
+                db.notifications.insert_one({
+                    "user_id": claim["user_id"],
+                    "type": "OWNERSHIP_REJECTED",
+                    "title": "Ownership Request Rejected",
+                    "message": f"Your ownership request for '{item_title}' was reviewed and not approved. Note: {notes or 'No details provided'}",
+                    "reference_id": ref_id,
+                    "item_id": str(claim["item_id"]),
+                    "read": False,
+                    "created_at": now_iso,
+                })
+                record_audit_log(
+                    "OWNERSHIP_REJECTED",
+                    admin_user.get("id"),
+                    admin_user.get("email"),
+                    f"Rejected ownership request {claim.get('reference_id', claim_id)}",
+                )
+
+            elif decision_norm == "request_info":
+                db.notifications.insert_one({
+                    "user_id": claim["user_id"],
+                    "type": "OWNERSHIP_REQUEST",
+                    "title": "More Information Requested",
+                    "message": f"The administrator requested additional information for '{item_title}': {notes}",
+                    "reference_id": ref_id,
+                    "item_id": str(claim["item_id"]),
+                    "read": False,
+                    "created_at": now_iso,
+                })
+
+            return {
+                "message": f"Case has been {decision_norm}",
+                "status": decision_norm,
+                "status_code": 200,
+            }
+        except Exception as e:
+            return {"error": str(e), "status_code": 400}
+
+
+    @staticmethod
+    def confirm_handover(reference_id: str, student_identifier: str, notes: str, admin_user: dict):
+        db = current_app.db
+        ref = (reference_id or "").strip()
+        if not ref:
+            return {"error": "A Reference ID or Item ID is required.", "status_code": 400}
+
+        try:
+            query = {"$or": [{"reference_id": ref}]}
+            try:
+                query["$or"].append({"_id": ObjectId(ref)})
+            except Exception:
+                pass
+
+            item = db.items.find_one(query)
+            claim = None
+            if not item:
+                claim = db.claims.find_one(query)
+                if claim and claim.get("item_id"):
+                    try:
+                        item = db.items.find_one({"_id": ObjectId(claim["item_id"])})
+                    except Exception:
+                        pass
+
+            if not item:
+                return {"error": f"No item found matching reference: {ref}", "status_code": 404}
+
+            item_id = str(item["_id"])
+            now_iso = datetime.now(timezone.utc).isoformat()
+
+            db.items.update_one(
+                {"_id": item["_id"]},
+                {
+                    "$set": {
+                        "status": "closed",
+                        "delivery_status": "RETURNED",
+                        "storage_status": "RETURNED",
+                        "handed_over_to": student_identifier or item.get("user_email"),
+                        "handed_over_at": now_iso,
+                        "handover_notes": notes,
+                        "updated_at": now_iso,
+                    },
+                    "$push": {
+                        "custody_events": {
+                            "event": "ITEM_RETURNED",
+                            "actor_id": admin_user.get("id"),
+                            "actor_name": admin_user.get("email"),
+                            "notes": notes,
+                            "timestamp": now_iso,
+                        }
+                    }
+                }
+            )
+
+            db.claims.update_many(
+                {"item_id": item_id, "status": {"$in": ["approved", "pending", "UNDER_REVIEW"]}},
+                {"$set": {"status": "completed", "updated_at": now_iso}}
+            )
+
+            student_id = item.get("user_id") or (claim.get("user_id") if claim else None)
+            if student_id:
+                db.notifications.insert_one({
+                    "user_id": student_id,
+                    "type": "ITEM_RETURNED",
+                    "title": "Item Handed Over",
+                    "message": f"Your item '{item.get('title')}' has been successfully handed over to you. Case is now closed.",
+                    "reference_id": item.get("reference_id") or ref,
+                    "read": False,
+                    "created_at": now_iso,
+                })
 
             record_audit_log(
-                "CLAIM_RESOLVED",
+                "ITEM_RETURNED",
                 admin_user.get("id"),
                 admin_user.get("email"),
-                f"Resolved claim {claim_id} with decision: {decision}",
+                f"Confirmed handover for item {item.get('title')} (Ref: {item.get('reference_id') or ref}) to {student_identifier}",
             )
 
             return {
-                "message": f"Claim has been {decision}",
-                "handover_url": handover_url,
-                "handover_token": raw_token,
+                "message": "Item handover confirmed successfully. Status set to RETURNED and CLOSED.",
+                "item_id": item_id,
+                "status": "closed",
+                "delivery_status": "RETURNED",
                 "status_code": 200,
             }
         except Exception as e:
@@ -252,7 +375,8 @@ class ClaimService:
                 return {"error": "This handover token is invalid.", "status_code": 400}
 
         now = datetime.now(timezone.utc).isoformat()
-        claim = db.claims.find_one({"_id": ObjectId(item["handover_claim_id"])})
+        claim_id = item.get("handover_claim_id")
+        claim = db.claims.find_one({"_id": ObjectId(claim_id)}) if claim_id else None
         result = db.items.update_one(
             {"_id": item["_id"], "handover_token_hash": token_hash, "status": "ready_for_collection"},
             {

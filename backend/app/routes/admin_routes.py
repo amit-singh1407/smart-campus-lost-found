@@ -39,9 +39,9 @@ def get_admin_dashboard_stats():
     total_items = db.items.count_documents({})
     lost_items_count = db.items.count_documents({"type": "lost"})
     found_items_count = db.items.count_documents({"type": "found"})
-    pending_claims_count = db.claims.count_documents({"status": "pending"})
-    approved_claims_count = db.claims.count_documents({"status": "approved"})
-    returned_items_count = db.items.count_documents({"status": "resolved"})
+    pending_claims_count = db.claims.count_documents({"status": {"$in": ["pending", "UNDER_REVIEW"]}})
+    approved_claims_count = db.claims.count_documents({"status": {"$in": ["approved", "completed"]}})
+    returned_items_count = db.items.count_documents({"status": {"$in": ["resolved", "closed"]}})
 
     # Categories Aggregation
     categories_agg = list(
@@ -237,6 +237,7 @@ def get_admin_claims():
         item = db.items.find_one({"_id": ObjectId(doc.get("item_id"))})
         if item:
             doc["item_title"] = item.get("title")
+            doc["item_reference_id"] = item.get("reference_id")
             doc["item_category"] = item.get("category")
             doc["item_location"] = item.get("location")
             doc["storage_locker"] = item.get("storage_locker")
@@ -245,6 +246,11 @@ def get_admin_claims():
             doc["is_high_value"] = item.get("is_high_value", False)
             doc["private_verification_questions"] = item.get("private_verification_questions", "")
             doc["distinctive_features"] = item.get("distinctive_features", "")
+            doc["item_image_url"] = item.get("image_url", "")
+        user = db.users.find_one({"_id": ObjectId(doc.get("user_id"))}, {"password_hash": 0})
+        if user:
+            doc["user_department"] = user.get("department", "")
+            doc["user_phone"] = user.get("phone", "")
         claims.append(doc)
     return jsonify({"claims": claims}), 200
 
@@ -276,6 +282,7 @@ def resolve_claim(claim_id):
             claim_id,
             validated.decision,
             validated.notes,
+            validated.ownership_verified,
             {"id": g.user_id, "email": g.user_email},
         )
         if "error" in result:
@@ -293,6 +300,20 @@ def verify_collection():
     if not token:
         return jsonify({"message": "A handover token is required."}), 400
     result = ClaimService.collect_item(token, {"id": g.user_id, "email": g.user_email})
+    if "error" in result:
+        return jsonify({"message": result["error"]}), result["status_code"]
+    return jsonify(result), result["status_code"]
+
+
+@admin_bp.post("/handover/confirm")
+@admin_required
+def confirm_handover():
+    """Confirm physical handover of an item at the Lost & Found center using Reference ID."""
+    data = request.get_json() or {}
+    ref_id = data.get("reference_id") or data.get("item_id")
+    student = data.get("student_identifier") or data.get("student") or ""
+    notes = data.get("notes", "")
+    result = ClaimService.confirm_handover(ref_id, student, notes, {"id": g.user_id, "email": g.user_email})
     if "error" in result:
         return jsonify({"message": result["error"]}), result["status_code"]
     return jsonify(result), result["status_code"]

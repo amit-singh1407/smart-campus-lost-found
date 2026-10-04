@@ -11,6 +11,7 @@ import {
   Loader2,
   ArrowLeft,
   X,
+  Camera,
 } from 'lucide-react';
 import { itemService } from '../../services/itemService';
 
@@ -50,8 +51,6 @@ export const ReportLostPage = () => {
     specificLocation: '',
     date: new Date().toISOString().split('T')[0],
     description: '',
-    distinctiveFeatures: '',
-    privateVerificationQuestions: '',
     imageUrl: '',
     imageHash: '',
   });
@@ -63,55 +62,13 @@ export const ReportLostPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-
-  // AI Report Quality Assistant state
-  const [qualityData, setQualityData] = useState({
-    quality_score: 25,
-    rating: 'Needs Detail',
-    badge_color: 'rose',
-    recommendation: 'Start filling out details. Adding brand, color, and location boosts AI matching fidelity.',
-    strengths: [],
-    suggestions: ['Add a descriptive item name and brand', 'Specify the campus location where last seen'],
-  });
-  const [analyzingQuality, setAnalyzingQuality] = useState(false);
-
-  const checkQuality = async (currentData) => {
-    try {
-      setAnalyzingQuality(true);
-      const res = await assistantService.analyzeQuality({
-        title: currentData.title,
-        category: currentData.category,
-        brand: currentData.brand,
-        color: currentData.color,
-        location: currentData.location,
-        description: currentData.description,
-        distinctive_features: currentData.distinctiveFeatures || currentData.privateVerificationQuestions,
-        has_image: Boolean(currentData.imageUrl || imageFile),
-        type: 'lost',
-      });
-      if (res.quality_score !== undefined) {
-        setQualityData(res);
-      }
-    } catch (err) {
-      // Non-blocking
-    } finally {
-      setAnalyzingQuality(false);
-    }
-  };
+  const [referenceId, setReferenceId] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => {
-      const updated = { ...prev, [name]: value };
-      // Debounce quality check
-      clearTimeout(window._qualityTimeout);
-      window._qualityTimeout = setTimeout(() => {
-        checkQuality(updated);
-      }, 500);
-      return updated;
-    });
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (error) setError('');
   };
-
 
   const handleImageSelect = async (e) => {
     const file = e.target.files?.[0];
@@ -128,7 +85,7 @@ export const ReportLostPage = () => {
         setFormData((prev) => ({ ...prev, imageUrl: res.url, imageHash: res.image_hash || '' }));
       }
     } catch (err) {
-      setError('Image upload failed. Please try again or submit without an image.');
+      setError('Image upload failed. Please try again.');
       setImageFile(null);
       setImagePreview('');
       setFormData((prev) => ({ ...prev, imageUrl: '', imageHash: '' }));
@@ -146,6 +103,17 @@ export const ReportLostPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!formData.title.trim()) {
+      setError('Item Name is required.');
+      return;
+    }
+
+    if (!formData.imageUrl) {
+      setError('Please upload an item photograph (* required).');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -161,17 +129,18 @@ export const ReportLostPage = () => {
         location: fullLocation,
         date: formData.date,
         description: formData.description.trim(),
-        distinctive_features: formData.distinctiveFeatures.trim(),
         image_url: formData.imageUrl.trim(),
         image_hash: formData.imageHash,
         type: 'lost',
       };
 
       const res = await itemService.reportLost(payload);
+      const generatedRef = res.item?.reference_id || res.reference_id || 'LOST-REPORT';
+      setReferenceId(generatedRef);
       setSuccess(true);
       setTimeout(() => {
         navigate('/my-reports');
-      }, 1500);
+      }, 2000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to submit lost item report.');
     } finally {
@@ -182,13 +151,13 @@ export const ReportLostPage = () => {
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
       <div className="flex items-center gap-3">
-        <Link to="/dashboard" className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800">
+        <Link to="/dashboard" className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h2 className="text-2xl font-bold text-slate-100">Report a Lost Item</h2>
+          <h2 className="text-2xl font-bold text-slate-100">Report Lost Item</h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Log details to search campus directory and trigger AI smart matching.
+            Log details to search campus directory and trigger notifications across university.
           </p>
         </div>
       </div>
@@ -202,16 +171,19 @@ export const ReportLostPage = () => {
         )}
 
         {success && (
-          <div className="mb-6 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2.5">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>Lost report published! Checking for matches across campus...</span>
+          <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 shrink-0" />
+            <div>
+              <p className="font-bold text-sm">Lost report submitted successfully!</p>
+              <p className="text-xs text-emerald-300 mt-0.5">Reference ID: <span className="font-mono font-bold text-white">{referenceId}</span>. Redirecting to My Reports...</p>
+            </div>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Item Name *
+              Item Name <span className="text-rose-400">*</span>
             </label>
             <input
               type="text"
@@ -220,18 +192,20 @@ export const ReportLostPage = () => {
               placeholder="e.g. MacBook Air M2 or Blue Hydro Flask"
               value={formData.title}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500 transition"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Category *</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Category <span className="text-rose-400">*</span>
+              </label>
               <select
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500 transition"
               >
                 {CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
@@ -242,15 +216,22 @@ export const ReportLostPage = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Date Lost *</label>
-              <input
-                type="date"
-                required
-                name="date"
-                value={formData.date}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500"
-              />
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Date Lost <span className="text-rose-400">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <input
+                  type="date"
+                  required
+                  name="date"
+                  value={formData.date}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500 transition"
+                />
+              </div>
             </div>
           </div>
 
@@ -263,19 +244,19 @@ export const ReportLostPage = () => {
                 placeholder="e.g. Apple, Dell, Nike, Casio"
                 value={formData.brand}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500 transition"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Primary Color</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Color</label>
               <input
                 type="text"
                 name="color"
                 placeholder="e.g. Space Gray, Navy Blue, Red"
                 value={formData.color}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500 transition"
               />
             </div>
           </div>
@@ -283,13 +264,13 @@ export const ReportLostPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Campus Location *
+                Location Lost <span className="text-rose-400">*</span>
               </label>
               <select
                 name="location"
                 value={formData.location}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500 transition"
               >
                 {LOCATIONS.map((loc) => (
                   <option key={loc} value={loc}>
@@ -301,7 +282,7 @@ export const ReportLostPage = () => {
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Specific Area / Room
+                Specific Location
               </label>
               <input
                 type="text"
@@ -309,98 +290,75 @@ export const ReportLostPage = () => {
                 placeholder="e.g. Table 4 near windows"
                 value={formData.specificLocation}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500 transition"
               />
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Description & Details
+              Description
             </label>
             <textarea
               rows={3}
               name="description"
-              placeholder="Provide general description, model, size, or circumstances of loss..."
+              placeholder="Provide item description, model, size, distinctive details, or circumstances of loss..."
               value={formData.description}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500 transition"
             />
           </div>
 
-          {/* Privacy-Preserving Hidden Verification Feature */}
-          <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-slate-200">
-                🔐 Private Verification Details (Hidden from Public View)
-              </label>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20">
-                Privacy Shielded
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400">
-              Information only the true owner would know (e.g. wallpaper picture, specific sticker on the back, internal engravings, or hidden compartment items). These remain completely hidden to prevent fraudulent claims.
-            </p>
-            <input
-              type="text"
-              name="privateVerificationQuestions"
-              placeholder="e.g. Lock screen wallpaper is a mountain photo; small anime sticker inside case"
-              value={formData.privateVerificationQuestions}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-100 text-xs focus:outline-none focus:border-rose-500"
-            />
-          </div>
-
+          {/* Upload Image Section */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Visible Distinctive Features (Public)
-            </label>
-            <input
-              type="text"
-              name="distinctiveFeatures"
-              placeholder="e.g. Scratched bottom corner, red zipper tag"
-              value={formData.distinctiveFeatures}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-rose-500"
-            />
-          </div>
-
-          {/* Cloudinary Image Upload Section */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Item Photograph (Cloudinary Upload)
+              Upload Image <span className="text-rose-400">*</span>
             </label>
 
             {imagePreview ? (
-              <div className="relative rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 p-2 flex items-center justify-between">
-                <div className="flex items-center gap-3">
+              <div className="p-4 rounded-2xl border border-slate-800 bg-slate-950 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
                   <img
                     src={imagePreview}
-                    alt="Preview"
-                    className="w-16 h-16 object-cover rounded-xl border border-slate-800"
+                    alt="Uploaded Image"
+                    className="w-20 h-20 object-cover rounded-xl border border-slate-800 shadow-md"
                   />
                   <div>
-                    <p className="text-xs font-medium text-slate-200 truncate max-w-xs">
-                      {imageFile?.name || 'Uploaded Photograph'}
+                    <p className="text-xs font-bold text-slate-200 truncate max-w-xs">
+                      {imageFile?.name || 'Item Photograph'}
                     </p>
-                    <span className="text-[10px] text-emerald-400 font-semibold">
-                      {uploadingImage ? 'Uploading to Cloudinary...' : 'Ready & Attached'}
-                    </span>
+                    <p className="text-[11px] text-emerald-400 font-semibold mt-0.5">
+                      {uploadingImage ? 'Uploading to Cloudinary...' : '✓ Image attached'}
+                    </p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleRemoveImage}
-                  className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-900"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <label className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer transition">
+                    Change Image
+                    <input
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg, image/webp"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-semibold transition"
+                  >
+                    Remove Image
+                  </button>
+                </div>
               </div>
             ) : (
-              <label className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-dashed border-slate-800 hover:border-rose-500/50 bg-slate-950/40 cursor-pointer transition">
+              <label className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-slate-800 hover:border-rose-500/50 bg-slate-950/40 cursor-pointer transition">
                 <UploadCloud className="w-8 h-8 text-slate-500 mb-2" />
                 <span className="text-xs font-medium text-slate-300">
-                  Click to upload image (PNG, JPG, WEBP - max 5MB)
+                  Click to upload item photograph (PNG, JPG, WEBP - max 5MB)
+                </span>
+                <span className="text-[11px] text-slate-500 mt-1">
+                  Photographs enable AI image similarity and owner verification
                 </span>
                 <input
                   type="file"
@@ -412,66 +370,6 @@ export const ReportLostPage = () => {
             )}
           </div>
 
-          {/* AI Report Quality Assistant Live Meter */}
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-slate-800 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-xs">
-                  AI
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-200">AI Report Quality Assistant</h4>
-                  <p className="text-[10px] text-slate-400">Live matching probability score</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span
-                  className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                    qualityData.quality_score >= 80
-                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      : qualityData.quality_score >= 50
-                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                  }`}
-                >
-                  {qualityData.quality_score}% • {qualityData.rating}
-                </span>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
-              <div
-                className={`h-full transition-all duration-500 rounded-full ${
-                  qualityData.quality_score >= 80
-                    ? 'bg-emerald-500'
-                    : qualityData.quality_score >= 50
-                    ? 'bg-amber-500'
-                    : 'bg-rose-500'
-                }`}
-                style={{ width: `${qualityData.quality_score}%` }}
-              />
-            </div>
-
-            <p className="text-[11px] text-slate-300 italic">{qualityData.recommendation}</p>
-
-            {qualityData.suggestions && qualityData.suggestions.length > 0 && (
-              <div className="pt-1 space-y-1">
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
-                  Recommended Additions:
-                </span>
-                <ul className="space-y-0.5 text-[10px] text-slate-400">
-                  {qualityData.suggestions.slice(0, 3).map((tip, idx) => (
-                    <li key={idx} className="flex items-center gap-1.5">
-                      <span className="text-amber-400">✦</span>
-                      <span>{tip}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-
           <button
             type="submit"
             disabled={loading || uploadingImage || success}
@@ -480,12 +378,12 @@ export const ReportLostPage = () => {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Publishing Report...</span>
+                <span>Submitting Lost Report...</span>
               </>
             ) : (
               <>
                 <PlusCircle className="w-4 h-4" />
-                <span>Publish Lost Report</span>
+                <span>Submit Lost Report</span>
               </>
             )}
           </button>
@@ -496,4 +394,3 @@ export const ReportLostPage = () => {
 };
 
 export default ReportLostPage;
-

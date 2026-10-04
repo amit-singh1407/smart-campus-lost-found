@@ -75,6 +75,7 @@ export const ReportFoundPage = () => {
     found_location: LOCATIONS[0],
     delivery_method: "LOST_FOUND_CENTER",
     found_image: "",
+    description: "",
   });
   const [confirmImageFile, setConfirmImageFile] = useState(null);
   const [confirmImagePreview, setConfirmImagePreview] = useState("");
@@ -129,8 +130,12 @@ export const ReportFoundPage = () => {
     setPhotoSearchResults(null);
 
     try {
-      const res = await itemService.searchByImage(file, { target_type: "lost", limit: 5 });
-      setPhotoSearchResults(res.items || []);
+      const res = await itemService.searchByImage(file, {
+        target_type: "lost",
+        threshold: 100,
+        limit: 5,
+      });
+      setPhotoSearchResults((res.items || []).filter((item) => Number(item.image_match_score) >= 100));
     } catch (err) {
       setPhotoSearchError("Failed to search by photo. Please try again.");
     } finally {
@@ -168,12 +173,21 @@ export const ReportFoundPage = () => {
   const submitFoundConfirmation = async () => {
     setConfirmSubmitting(true);
     setConfirmError("");
+
+    if (!confirmData.found_image) {
+      setConfirmError("Please upload a photograph of the found item (* required).");
+      setConfirmSubmitting(false);
+      return;
+    }
+
     try {
       const payload = {
         matched_lost_item_id: selectedLostItem._id,
         found_location: confirmData.found_location,
         delivery_method: confirmData.delivery_method,
-        found_image: confirmData.found_image || null,
+        found_image: confirmData.found_image,
+        found_description: confirmData.description.trim(),
+        description: confirmData.description.trim(),
         found_at: new Date().toISOString(),
       };
       const res = await itemService.submitFoundConfirmation(payload);
@@ -411,7 +425,7 @@ export const ReportFoundPage = () => {
                <div className="space-y-6 border-t border-slate-800 pt-8 mt-2">
                  <h4 className="text-lg font-bold text-slate-200 flex items-center gap-2">
                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                   Possible Matches Found
+                   Exact Matches Found (100% only)
                  </h4>
                  {photoSearchResults.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -463,13 +477,15 @@ export const ReportFoundPage = () => {
                </div>
              )}
 
-             <div className="space-y-8">
+             <div className="space-y-6">
                 <div className="p-5 rounded-2xl border border-slate-800 bg-slate-800/30">
-                  <label className="block text-sm font-bold text-slate-200 mb-3">Upload Photo of Found Item (Optional)</label>
-                  <p className="text-xs text-slate-400 mb-4">Taking a quick picture helps the owner verify it's theirs.</p>
+                  <label className="block text-sm font-bold text-slate-200 mb-1.5">
+                    Upload Photo <span className="text-rose-400">*</span>
+                  </label>
+                  <p className="text-xs text-slate-400 mb-4">Taking a picture helps verify this item matches the lost report.</p>
                   {confirmImagePreview ? (
                     <div className="flex items-center gap-5 p-3 rounded-xl bg-slate-950 border border-slate-700">
-                      <img src={confirmImagePreview} alt="Found" className="w-24 h-24 object-cover rounded-lg border border-slate-800 shadow-md" />
+                      <img src={confirmImagePreview} alt="Found Item" className="w-24 h-24 object-cover rounded-lg border border-slate-800 shadow-md" />
                       <div>
                         <p className="text-sm font-bold text-slate-200 mb-2">Photo Attached</p>
                         <button onClick={() => {setConfirmImagePreview(""); setConfirmImageFile(null); setConfirmData(p => ({...p, found_image: ""}))}} className="px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 text-xs font-semibold hover:bg-rose-500/20 transition">Remove Photo</button>
@@ -478,14 +494,16 @@ export const ReportFoundPage = () => {
                   ) : (
                     <label className="inline-flex items-center gap-2.5 px-5 py-3 rounded-xl bg-blue-600/10 border border-blue-500/30 text-blue-400 hover:bg-blue-600/20 cursor-pointer text-sm font-bold transition shadow-sm">
                       <Camera className="w-5 h-5" />
-                      Take / Upload Photo
+                      Take / Upload Photo *
                       <input type="file" accept="image/*" onChange={handleConfirmImageSelect} className="hidden" />
                     </label>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-slate-200 mb-3">Where exactly did you find it?</label>
+                  <label className="block text-sm font-bold text-slate-200 mb-2">
+                    Where did you find it? <span className="text-rose-400">*</span>
+                  </label>
                   <select 
                     value={confirmData.found_location}
                     onChange={(e) => setConfirmData(prev => ({...prev, found_location: e.target.value}))}
@@ -496,9 +514,26 @@ export const ReportFoundPage = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-slate-200 mb-4">What will you do with the item?</label>
-                  <div className="space-y-4">
-                    <label className={`flex items-start gap-4 p-5 rounded-2xl border-2 cursor-pointer transition shadow-sm ${confirmData.delivery_method === 'LOST_FOUND_CENTER' ? 'bg-blue-600/10 border-blue-500' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}>
+                  <label className="block text-sm font-bold text-slate-200 mb-3">
+                    Where is the item now? <span className="text-rose-400">*</span>
+                  </label>
+                  <div className="space-y-3">
+                    <label className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition shadow-sm ${confirmData.delivery_method === 'WITH_ME' ? 'bg-blue-600/10 border-blue-500' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}>
+                      <input 
+                        type="radio" 
+                        name="delivery_method" 
+                        value="WITH_ME"
+                        checked={confirmData.delivery_method === 'WITH_ME'}
+                        onChange={(e) => setConfirmData(prev => ({...prev, delivery_method: e.target.value}))}
+                        className="mt-1 w-4 h-4 accent-blue-500"
+                      />
+                      <div>
+                        <p className="font-bold text-slate-100 text-sm mb-0.5">With Me</p>
+                        <p className="text-xs text-slate-400">You currently have the item and will hold it until verified.</p>
+                      </div>
+                    </label>
+
+                    <label className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition shadow-sm ${confirmData.delivery_method === 'LOST_FOUND_CENTER' ? 'bg-blue-600/10 border-blue-500' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}>
                       <input 
                         type="radio" 
                         name="delivery_method" 
@@ -508,25 +543,39 @@ export const ReportFoundPage = () => {
                         className="mt-1 w-4 h-4 accent-blue-500"
                       />
                       <div>
-                        <p className="font-bold text-slate-100 text-base mb-1">I will deliver it to the Lost & Found Center</p>
-                        <p className="text-sm text-slate-400">Bring it to Campus Security. Best and safest way to ensure it returns to the owner.</p>
+                        <p className="font-bold text-slate-100 text-sm mb-0.5">Lost & Found Center</p>
+                        <p className="text-xs text-slate-400">You will deliver or have delivered it to the Campus Lost & Found Center.</p>
                       </div>
                     </label>
-                    <label className={`flex items-start gap-4 p-5 rounded-2xl border-2 cursor-pointer transition shadow-sm ${confirmData.delivery_method === 'CURRENTLY_HAVE_IT' ? 'bg-blue-600/10 border-blue-500' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}>
+
+                    <label className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition shadow-sm ${confirmData.delivery_method === 'CAMPUS_SECURITY' ? 'bg-blue-600/10 border-blue-500' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}>
                       <input 
                         type="radio" 
                         name="delivery_method" 
-                        value="CURRENTLY_HAVE_IT"
-                        checked={confirmData.delivery_method === 'CURRENTLY_HAVE_IT'}
+                        value="CAMPUS_SECURITY"
+                        checked={confirmData.delivery_method === 'CAMPUS_SECURITY'}
                         onChange={(e) => setConfirmData(prev => ({...prev, delivery_method: e.target.value}))}
                         className="mt-1 w-4 h-4 accent-blue-500"
                       />
                       <div>
-                        <p className="font-bold text-slate-100 text-base mb-1">I currently have the item</p>
-                        <p className="text-sm text-slate-400">You will hold onto it until the owner contacts you through the platform.</p>
+                        <p className="font-bold text-slate-100 text-sm mb-0.5">Campus Security</p>
+                        <p className="text-xs text-slate-400">Turned over to Campus Security officers or guard post.</p>
                       </div>
                     </label>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-200 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={confirmData.description}
+                    onChange={(e) => setConfirmData(prev => ({...prev, description: e.target.value}))}
+                    placeholder="Provide details about where found and physical condition (e.g. Black backpack found near library entrance with blue notebook inside)..."
+                    className="w-full px-5 py-3 rounded-2xl border border-slate-700 bg-slate-950 text-slate-200 text-sm focus:outline-none focus:border-blue-500 shadow-inner"
+                  />
                 </div>
 
                 <div className="flex flex-col-reverse sm:flex-row gap-4 pt-6 border-t border-slate-800">
@@ -557,35 +606,33 @@ export const ReportFoundPage = () => {
               <p className="text-slate-400 text-sm">Thank you for helping the campus community.</p>
             </div>
             
-            {confirmData.delivery_method === "LOST_FOUND_CENTER" ? (
-              <div className="space-y-6 py-6 px-4 bg-slate-950 rounded-2xl border border-slate-800 shadow-inner">
-                <p className="text-slate-300 text-sm font-semibold">Please deliver the item to:</p>
-                <div className="p-5 rounded-xl bg-slate-800/80 inline-block text-left border border-slate-700 shadow-sm w-full max-w-sm mx-auto">
+            <div className="space-y-6 py-6 px-4 bg-slate-950 rounded-2xl border border-slate-800 shadow-inner">
+              <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 max-w-sm mx-auto">
+                <p className="text-xs text-slate-500 uppercase font-bold tracking-widest mb-1">Reference ID</p>
+                <p className="font-mono text-2xl font-bold text-blue-400 tracking-wider">{referenceId}</p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 max-w-sm mx-auto">
+                <p className="text-xs text-slate-400 uppercase font-bold tracking-widest mb-0.5">Status</p>
+                <p className="text-sm font-bold text-emerald-400">Waiting for Delivery</p>
+              </div>
+
+              {confirmData.delivery_method === "LOST_FOUND_CENTER" || confirmData.delivery_method === "CAMPUS_SECURITY" ? (
+                <div className="p-4 rounded-xl bg-slate-800/60 inline-block text-left border border-slate-700 shadow-sm w-full max-w-sm mx-auto">
                   <div className="flex items-start gap-3">
-                    <MapPin className="w-6 h-6 text-blue-400 shrink-0 mt-0.5" />
+                    <MapPin className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-bold text-blue-400 text-lg">Campus Lost & Found Center</p>
-                      <p className="text-sm text-slate-300 mt-1">Location: Main Campus Security Desk</p>
+                      <p className="font-bold text-blue-400 text-sm">Campus Lost & Found Center</p>
+                      <p className="text-xs text-slate-300 mt-0.5">Deliver to Security Desk using your Reference ID.</p>
                     </div>
                   </div>
                 </div>
-                <div className="pt-4 border-t border-slate-800">
-                  <p className="text-xs text-slate-500 uppercase font-bold tracking-widest mb-2">Your Reference ID</p>
-                  <p className="font-mono text-2xl font-bold text-slate-200 tracking-wider bg-slate-900 py-3 rounded-xl border border-slate-800">{referenceId}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="py-6 px-6 bg-slate-950 rounded-2xl border border-slate-800 shadow-inner text-left">
-                <p className="text-slate-300 text-sm leading-relaxed">
-                  <strong className="text-slate-100 block mb-2 text-base">You are currently holding the item.</strong> 
-                  We have notified the original reporter of a possible match. You will be contacted via email or campus notifications once ownership is verified by administration.
+              ) : (
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Item is safely with you. You will be notified when admin confirms ownership for handover.
                 </p>
-                <div className="mt-4 pt-4 border-t border-slate-800">
-                  <p className="text-xs text-slate-500 uppercase font-bold tracking-widest mb-1">Your Reference ID</p>
-                  <p className="font-mono text-xl font-bold text-slate-200 tracking-wider">{referenceId}</p>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
             
             <div className="pt-4">
                <Link to="/dashboard" className="inline-flex items-center justify-center w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition shadow-lg shadow-blue-600/20">

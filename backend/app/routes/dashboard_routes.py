@@ -70,7 +70,7 @@ def get_user_dashboard():
 
     # Live calculated metrics
     unread_notifs = db.notifications.count_documents({"user_id": user_id, "read": False})
-    pending_claims_count = sum(1 for c in my_claims if c.get("status") == "pending")
+    pending_claims_count = sum(1 for c in my_claims if c.get("status") in ("pending", "UNDER_REVIEW"))
 
     return jsonify({
         "stats": {

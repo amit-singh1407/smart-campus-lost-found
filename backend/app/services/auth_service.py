@@ -1,3 +1,4 @@
+import re
 import random
 import string
 from datetime import datetime, timezone, timedelta
@@ -10,6 +11,20 @@ from app.utils.email_sender import send_verification_email
 from app.services.audit_service import record_audit_log
 
 
+def validate_password_strength(password: str) -> tuple[bool, str]:
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+    if not re.search(r"[A-Z]", password):
+        return False, "Password must contain at least one uppercase letter (A-Z)."
+    if not re.search(r"[a-z]", password):
+        return False, "Password must contain at least one lowercase letter (a-z)."
+    if not re.search(r"[0-9]", password):
+        return False, "Password must contain at least one number (0-9)."
+    if not re.search(r"[^A-Za-z0-9]", password):
+        return False, "Password must contain at least one special character."
+    return True, ""
+
+
 def generate_otp(length: int = 6) -> str:
     """Generate a random numeric OTP string."""
     return "".join(random.choices(string.digits, k=length))
@@ -20,18 +35,23 @@ class AuthService:
     def register_user(data: dict):
         db = current_app.db
         email = data["email"].strip().lower()
+        password = data.get("password", "")
+
+        # Password strength validation on backend
+        is_valid, err_msg = validate_password_strength(password)
+        if not is_valid:
+            return {"error": err_msg, "status_code": 400}
 
         # Check existing user email
         if db.users.find_one({"email": email}):
             return {"error": "An account with this campus email already exists.", "status_code": 409}
 
-        # Check duplicate student ID prevention
-        student_id = (data.get("student_id") or "").strip()
-        if student_id and db.users.find_one({"student_id": student_id}):
-            return {"error": "An account with this Student ID already exists.", "status_code": 409}
-
         # Argon2 hash password
-        hashed = hash_password(data["password"])
+        hashed = hash_password(password)
+
+        student_id = (data.get("student_id") or "").strip()
+        department = (data.get("department") or "").strip()
+        phone = (data.get("phone") or "").strip()
 
         user_doc = {
             "name": (data.get("name") or "").strip(),

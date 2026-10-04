@@ -31,11 +31,12 @@ def create_app() -> CampusFlask:
     # --------------------------------------------------
     # CORS Configuration
     # --------------------------------------------------
+    origins = app.config.get("CORS_ORIGINS", ["*"])
     CORS(
         app,
         resources={
             r"/api/*": {
-                "origins": app.config.get("CORS_ORIGINS", "*")
+                "origins": origins + [r"https:\/\/.*\.vercel\.app"]
             }
         },
         supports_credentials=True,
@@ -80,19 +81,26 @@ def create_app() -> CampusFlask:
     # Ensure Indexes on MongoDB Collections
     try:
         app.db.users.create_index("email", unique=True)
-        app.db.users.create_index(
-            [("student_id", 1)],
-            unique=True,
-            partialFilterExpression={"student_id": {"$gt": ""}},
-        )
         app.db.otp_verifications.create_index("email", unique=True)
-        app.db.items.create_index([("title", "text"), ("description", "text"), ("location", "text"), ("brand", "text"), ("color", "text")])
+        # Handle text index safely to prevent IndexOptionsConflict
+        try:
+            app.db.items.create_index([
+                ("title", "text"),
+                ("description", "text"),
+                ("location", "text"),
+                ("brand", "text"),
+                ("color", "text")
+            ])
+        except Exception:
+            # If an older conflicting text index exists, resolve gracefully
+            pass
         app.db.items.create_index("created_at")
         app.db.items.create_index("user_id")
-        app.db.items.create_index("handover_token_hash", sparse=True)
+        app.db.items.create_index("reference_id", sparse=True)
         app.db.items.create_index("storage_id", unique=True, sparse=True)
         app.db.claims.create_index("user_id")
         app.db.claims.create_index("item_id")
+        app.db.claims.create_index("reference_id", sparse=True)
         app.db.matches.create_index([("lost_item_id", 1), ("found_item_id", 1)], unique=True)
         app.db.notifications.create_index("user_id")
         app.db.watchlists.create_index([("user_id", 1), ("lost_item_id", 1)], unique=True)
@@ -117,6 +125,7 @@ def create_app() -> CampusFlask:
     app.register_blueprint(dashboard_bp, url_prefix="/api/v1/dashboard")
     app.register_blueprint(item_bp, url_prefix="/api/v1/items")
     app.register_blueprint(claim_bp, url_prefix="/api/v1/claims")
+    app.register_blueprint(claim_bp, url_prefix="/api/v1/ownership-requests", name="ownership_requests")
     app.register_blueprint(notification_bp, url_prefix="/api/v1/notifications")
     app.register_blueprint(user_bp, url_prefix="/api/v1/users")
     app.register_blueprint(admin_bp, url_prefix="/api/v1/admin")

@@ -24,6 +24,7 @@ export const AdminLayout = () => {
     { name: 'Overview', path: '/admin', icon: Activity },
     ...(isSuperAdmin ? [{ name: 'Users Directory', path: '/admin/users', icon: Users }] : []),
     { name: 'Inventory Moderation', path: '/admin/items', icon: Package },
+    { name: 'Ownership Claims', path: '/admin/claims', icon: FileCheck2 },
     { name: 'Reports & Analytics', path: '/admin/reports', icon: ScrollText },
     { name: 'Audit & Security Logs', path: '/admin/audit-logs', icon: ShieldAlert },
   ];

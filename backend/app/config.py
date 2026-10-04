@@ -22,11 +22,12 @@ class Config:
         origin.strip()
         for origin in os.getenv(
             "CORS_ORIGINS",
-            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000",
+            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,https://*.vercel.app",
         ).split(",")
         if origin.strip()
     ]
 
+    PHOTO_MATCH_THRESHOLD = int(os.getenv("PHOTO_MATCH_THRESHOLD", "100"))
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", 16 * 1024 * 1024))
     RATE_LIMIT_DEFAULT = os.getenv("RATE_LIMIT_DEFAULT", "500/day")
     REDIS_URL = os.getenv("REDIS_URL", "memory://")

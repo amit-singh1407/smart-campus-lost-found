@@ -25,6 +25,7 @@ def get_notifications():
 
 
 @notification_bp.patch("/<notif_id>/read")
+@notification_bp.post("/<notif_id>/read")
 @jwt_required_custom
 def mark_read(notif_id):
     db = current_app.db
@@ -46,3 +47,21 @@ def mark_read(notif_id):
         return jsonify({"message": "Notification marked as read"}), 200
     except Exception:
         return jsonify({"message": "Invalid ID format"}), 400
+
+
+@notification_bp.post("/read-all")
+@notification_bp.patch("/read-all")
+@jwt_required_custom
+def mark_all_read():
+    db = current_app.db
+    # Mark personal notifications as read
+    db.notifications.update_many(
+        {"user_id": g.user_id, "read": False},
+        {"$set": {"read": True}},
+    )
+    # Add user to read_by on campus notifications
+    db.notifications.update_many(
+        {"target_type": "ALL_ACTIVE_STUDENTS"},
+        {"$addToSet": {"read_by": g.user_id}},
+    )
+    return jsonify({"message": "All notifications marked as read"}), 200

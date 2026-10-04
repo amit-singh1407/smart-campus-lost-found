@@ -228,6 +228,14 @@ export const LoginPage = () => {
               </Link>
             </p>
           </div>
+
+          <Link
+            to="/"
+            className="mt-4 inline-flex w-full items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-white transition"
+          >
+            <span aria-hidden="true">&lt;-</span>
+            <span>Back to Home</span>
+          </Link>
         </div>
       </div>
     </div>

@@ -55,7 +55,7 @@ def get_item(item_id):
 
 @item_bp.post("/search-by-image")
 def search_by_image():
-    """Rank live items against an uploaded image."""
+    """Rank live items against an uploaded image with configurable threshold."""
     if "file" not in request.files:
         return jsonify({"message": "No file payload in request"}), 400
 
@@ -64,13 +64,43 @@ def search_by_image():
         return jsonify({"message": file_result["error"]}), file_result["status_code"]
 
     target_type = request.form.get("target_type", "found")
+    threshold = request.form.get("threshold") or request.args.get("threshold")
 
     result = ItemService.search_items_by_image(
         file_result["image_hash"],
         page=request.form.get("page", 1),
         limit=request.form.get("limit", 12),
-        target_type=target_type
+        target_type=target_type,
+        threshold=threshold,
     )
+    return jsonify(result), result["status_code"]
+
+
+@item_bp.get("/lost/available")
+def get_available_lost_items():
+    """Retrieve active lost reports available to be found/matched."""
+    params = dict(request.args)
+    params["type"] = "lost"
+    params["status"] = "open"
+    result = ItemService.get_items(params)
+    return jsonify(result), result["status_code"]
+
+
+@item_bp.post("/<item_id>/ownership-request")
+@jwt_required_custom
+def create_item_ownership_request(item_id):
+    """Submit an ownership request for an item."""
+    from app.services.claim_service import ClaimService
+    data = request.get_json() or {}
+    data["item_id"] = item_id
+    result = ClaimService.create_claim(
+        g.user_id,
+        g.user_email,
+        g.user_name,
+        data,
+    )
+    if "error" in result:
+        return jsonify({"message": result["error"]}), result["status_code"]
     return jsonify(result), result["status_code"]
 
 

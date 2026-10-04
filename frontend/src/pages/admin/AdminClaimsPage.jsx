@@ -34,6 +34,7 @@ export const AdminClaimsPage = () => {
   const [loading, setLoading]             = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [notes, setNotes]                 = useState({});
+  const [ownershipVerified, setOwnershipVerified] = useState({});
   const [handoverTokens, setHandoverTokens] = useState({});
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [statusFilter, setStatusFilter]   = useState('pending');
@@ -78,7 +79,12 @@ export const AdminClaimsPage = () => {
     const claimNote = notes[claimId] || '';
     setActionLoading(claimId);
     try {
-      const result = await adminService.resolveClaim(claimId, decision, claimNote);
+      const result = await adminService.resolveClaim(
+        claimId,
+        decision,
+        claimNote,
+        decision !== 'approved' || ownershipVerified[claimId] === true,
+      );
       setClaims((prev) =>
         prev.map((c) =>
           (c._id || c.id) === claimId
@@ -285,6 +291,11 @@ export const AdminClaimsPage = () => {
                       ID: {claimId.substring(0, 8)}
                     </span>
                   </div>
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-400">
+                    <span>Email: <strong className="text-slate-200">{claim.user_email || 'Not provided'}</strong></span>
+                    <span>Institution: <strong className="text-slate-200">{claim.user_department || 'Not provided'}</strong></span>
+                    <span>Lost reference: <strong className="text-slate-200">{claim.item_reference_id || 'Not provided'}</strong></span>
+                  </div>
                 </div>
 
                 <div className="p-6 flex-1 flex flex-col gap-4">
@@ -313,6 +324,12 @@ export const AdminClaimsPage = () => {
                     </p>
                   </div>
 
+                  {claim.supporting_image_url && (
+                    <a href={claim.supporting_image_url} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:text-blue-300">
+                      View uploaded ownership evidence image
+                    </a>
+                  )}
+
                   {/* Private Verification Answer Checked by Admin */}
                   {claim.answers_to_private_questions && (
                     <div className="p-5 rounded-2xl bg-purple-950/20 border border-purple-500/30">
@@ -340,6 +357,15 @@ export const AdminClaimsPage = () => {
                   <div className="pt-4 border-t border-slate-800/60 mt-2">
                     {isPending ? (
                       <div className="space-y-4">
+                        <label className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={ownershipVerified[claimId] === true}
+                            onChange={(e) => setOwnershipVerified((prev) => ({ ...prev, [claimId]: e.target.checked }))}
+                            className="mt-0.5 h-4 w-4 accent-amber-500"
+                          />
+                          <span>I verified the claimant's information and evidence and confirm this item belongs to this student.</span>
+                        </label>
                         <input
                           type="text"
                           placeholder="Internal admin notes (optional)..."
@@ -361,7 +387,7 @@ export const AdminClaimsPage = () => {
                           </button>
                           <button
                             onClick={() => handleResolve(claimId, 'approved')}
-                            disabled={actionLoading === claimId}
+                            disabled={actionLoading === claimId || ownershipVerified[claimId] !== true}
                             className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
                           >
                             {actionLoading === claimId ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}

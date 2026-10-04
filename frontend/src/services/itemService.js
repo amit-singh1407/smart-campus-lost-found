@@ -125,6 +125,11 @@ export const claimService = {
     const res = await api.patch(`/notifications/${id}/read`);
     return res.data;
   },
+
+  async markAllNotificationsRead() {
+    const res = await api.post('/notifications/read-all');
+    return res.data;
+  },
 };
 
 export const assistantService = {
@@ -185,8 +190,17 @@ export const adminService = {
     return res.data;
   },
 
-  async resolveClaim(claimId, decision, notes = '') {
-    const res = await api.patch(`/admin/claims/${claimId}/resolve`, { decision, notes });
+  async resolveClaim(claimId, decision, notes = '', ownership_verified = false) {
+    const res = await api.patch(`/admin/claims/${claimId}/resolve`, {
+      decision,
+      notes,
+      ownership_verified,
+    });
+    return res.data;
+  },
+
+  async confirmHandover(data) {
+    const res = await api.post('/admin/handover/confirm', data);
     return res.data;
   },
 

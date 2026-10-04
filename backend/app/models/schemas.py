@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr, Field
+import re
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -6,10 +7,24 @@ from datetime import datetime
 class UserRegisterSchema(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
-    password: str = Field(..., min_length=6)
-    student_id: Optional[str] = None
+    password: str = Field(..., min_length=8)
     department: Optional[str] = None
     phone: Optional[str] = None
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter (A-Z)")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter (a-z)")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("Password must contain at least one number (0-9)")
+        if not re.search(r"[^A-Za-z0-9]", v):
+            raise ValueError("Password must contain at least one special character")
+        return v
 
 
 class UserLoginSchema(BaseModel):
@@ -33,7 +48,22 @@ class ForgotPasswordSchema(BaseModel):
 class ResetPasswordSchema(BaseModel):
     email: EmailStr
     otp: str
-    new_password: str = Field(..., min_length=6)
+    new_password: str = Field(..., min_length=8)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter (A-Z)")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter (a-z)")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("Password must contain at least one number (0-9)")
+        if not re.search(r"[^A-Za-z0-9]", v):
+            raise ValueError("Password must contain at least one special character")
+        return v
 
 
 class ItemCreateSchema(BaseModel):
@@ -45,10 +75,10 @@ class ItemCreateSchema(BaseModel):
     date: Optional[str] = None
     description: Optional[str] = ""
     distinctive_features: Optional[str] = ""
-    private_verification_questions: Optional[str] = ""  # Hidden from public, used in claim verification
+    private_verification_questions: Optional[str] = ""
     storage_location: Optional[str] = ""
-    storage_shelf: Optional[str] = ""  # e.g., "Shelf B"
-    storage_locker: Optional[str] = ""  # e.g., "Locker 17"
+    storage_shelf: Optional[str] = ""
+    storage_locker: Optional[str] = ""
     is_high_value: Optional[bool] = False
     image_url: Optional[str] = ""
     image_hash: Optional[str] = ""
@@ -95,11 +125,14 @@ class ItemUpdateSchema(BaseModel):
     received_by_admin: Optional[str] = None
     received_at: Optional[str] = None
 
+
 class FoundItemSubmitSchema(BaseModel):
     matched_lost_item_id: str
     found_location: str
-    delivery_method: str = Field(..., pattern="^(LOST_FOUND_CENTER|CURRENTLY_HAVE_IT)$")
+    delivery_method: str = Field(..., pattern="^(LOST_FOUND_CENTER|CURRENTLY_HAVE_IT|CAMPUS_SECURITY|WITH_ME)$")
     found_image: Optional[str] = None
+    found_description: Optional[str] = None
+    description: Optional[str] = None
     found_at: Optional[datetime] = None
 
 
@@ -108,11 +141,21 @@ class ClaimCreateSchema(BaseModel):
     proof_description: str = Field(..., min_length=5)
     contact_phone: Optional[str] = ""
     evidence_image_url: Optional[str] = ""
+    supporting_image_url: Optional[str] = ""
+    additional_information: Optional[str] = ""
     answers_to_private_questions: Optional[str] = ""
 
 
 class ClaimResolveSchema(BaseModel):
-    decision: str = Field(..., pattern="^(approved|rejected|completed|request_info)$")
+    decision: str = Field(..., pattern="^(approved|rejected|completed|request_info|resolve)$")
+    notes: Optional[str] = ""
+    ownership_verified: bool = False
+
+
+class HandoverConfirmSchema(BaseModel):
+    reference_id: Optional[str] = None
+    item_id: Optional[str] = None
+    student_identifier: Optional[str] = ""
     notes: Optional[str] = ""
 
 

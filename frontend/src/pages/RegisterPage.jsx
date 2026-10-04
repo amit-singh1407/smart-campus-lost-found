@@ -8,9 +8,13 @@ import { api } from '../services/api'
 const schema = z.object({
   name: z.string().min(2, 'Name is required'),
   email: z.string().email('Valid college email is required'),
-  student_id: z.string().min(3, 'Student ID is required'),
-  phone: z.string().min(10, 'Phone number is required'),
-  password: z.string().min(8, 'Password should be at least 8 characters'),
+  department: z.string().optional(),
+  phone: z.string().optional(),
+  password: z.string().min(8, 'Password should be at least 8 characters')
+    .regex(/[A-Z]/, 'Password needs an uppercase letter')
+    .regex(/[a-z]/, 'Password needs a lowercase letter')
+    .regex(/[0-9]/, 'Password needs a number')
+    .regex(/[^A-Za-z0-9]/, 'Password needs a special character'),
   confirmPassword: z.string().min(8, 'Please confirm your password'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
@@ -57,9 +61,14 @@ function RegisterPage() {
           </label>
 
           <label>
-            <span>Student ID</span>
-            <input type="text" {...register('student_id')} placeholder="CSE-20218" />
-            {errors.student_id && <small>{errors.student_id.message}</small>}
+            <span>Institution / Department / Major</span>
+            <select {...register('department')}>
+              <option value="">Select Institution</option>
+              <option value="BBDU">BBDU</option>
+              <option value="BBDNITM">BBDNITM</option>
+              <option value="BBDEC">BBDEC</option>
+            </select>
+            {errors.department && <small>{errors.department.message}</small>}
           </label>
 
           <label>
@@ -88,6 +97,7 @@ function RegisterPage() {
         <p className="auth-footer">
           Already have an account? <Link to="/login">Login</Link>
         </p>
+        <p className="auth-footer"><Link to="/">&lt;- Back to Home</Link></p>
       </div>
     </div>
   )

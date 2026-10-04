@@ -52,12 +52,13 @@ class ItemService:
             "delivery_method": doc.get("delivery_method"),
             "delivery_status": doc.get("delivery_status"),
             "reference_id": doc.get("reference_id"),
+            "found_description": doc.get("found_description") or doc.get("description", ""),
         }
 
 
     @staticmethod
-    def search_items_by_image(image_hash: str, page=1, limit=12, target_type="found"):
-        """Rank items by perceptual-hash similarity without exposing hashes."""
+    def search_items_by_image(image_hash: str, page=1, limit=12, target_type="found", threshold=None):
+        """Rank items by perceptual-hash similarity with configurable threshold filter."""
         db = current_app.db
         try:
             page = max(1, int(page))
@@ -65,11 +66,23 @@ class ItemService:
         except (TypeError, ValueError):
             page, limit = 1, 12
 
-        candidates = db.items.find({
-            "type": target_type,
+        if threshold is None:
+            threshold = getattr(current_app.config, "PHOTO_MATCH_THRESHOLD", 100)
+        else:
+            try:
+                threshold = int(threshold)
+            except (TypeError, ValueError):
+                threshold = 100
+        threshold = max(100, threshold)
+
+        query = {
             "status": {"$in": ["open", "matched"]},
             "image_hash": {"$exists": True, "$ne": ""},
-        })
+        }
+        if target_type and target_type != "all":
+            query["type"] = target_type
+
+        candidates = db.items.find(query)
         ranked = []
         for doc in candidates:
             stored_hash = doc.get("image_hash", "")
@@ -77,7 +90,8 @@ class ItemService:
                 continue
             distance = sum(left != right for left, right in zip(image_hash, stored_hash))
             score = round((1 - distance / len(image_hash)) * 100)
-            ranked.append((score, doc))
+            if score >= threshold:
+                ranked.append((score, doc))
 
         ranked.sort(key=lambda entry: entry[0], reverse=True)
         total = len(ranked)
@@ -96,6 +110,7 @@ class ItemService:
             "limit": limit,
             "pages": total_pages,
             "total_pages": total_pages,
+            "threshold": threshold,
             "status_code": 200,
         }
 
@@ -108,8 +123,14 @@ class ItemService:
             hv in category.lower() for hv in ["laptop", "electronic", "phone", "wallet", "watch", "card"]
         )
 
+        year = datetime.now(timezone.utc).year
+        rand_id = secrets.randbelow(90000) + 10000
+        ref_prefix = "LOST" if data["type"] == "lost" else "FOUND"
+        reference_id = f"{ref_prefix}-{year}-{rand_id}"
+
         item_doc = {
             "title": data["title"].strip(),
+            "reference_id": reference_id,
             "category": category,
             "brand": data.get("brand", "").strip(),
             "color": data.get("color", "").strip(),
@@ -218,16 +239,18 @@ class ItemService:
                 "status_code": 409,
             }
 
-        # Reference ID logic: e.g., FOUND-2026-00452
-        # Let's generate a unique reference ID.
-        reference_id = f"FOUND-{datetime.now(timezone.utc).year}-{secrets.randbelow(100000):05d}"
+        # Reference ID logic: e.g., FOUND-2026-27329
+        reference_id = f"FOUND-{datetime.now(timezone.utc).year}-{secrets.randbelow(90000) + 10000:05d}"
 
         now_iso = datetime.now(timezone.utc).isoformat()
+        delivery_method = data.get("delivery_method", "LOST_FOUND_CENTER")
+        delivery_status = "WAITING_FOR_DELIVERY" if delivery_method in ["LOST_FOUND_CENTER", "CAMPUS_SECURITY"] else "CURRENTLY_WITH_FINDER"
+        found_desc = (data.get("found_description") or data.get("description") or "").strip()
+
         item_doc = {
             "type": "found",
             "item_type": "FOUND",
-            # Copy only public lost-report fields. Private verification data stays
-            # on the original lost report and is never copied to the found record.
+            # Copy public lost-report fields
             "title": lost_item.get("title", "Reported Lost Item"),
             "category": lost_item.get("category", "Others"),
             "brand": lost_item.get("brand", ""),
@@ -235,6 +258,7 @@ class ItemService:
             "location": lost_item.get("location", "Campus"),
             "date": lost_item.get("date"),
             "description": lost_item.get("description", ""),
+            "found_description": found_desc,
             "image_url": lost_item.get("image_url", ""),
             "matched_lost_item_id": str(lost_item_id),
             "found_by": str(user_id),
@@ -243,8 +267,8 @@ class ItemService:
             "found_location": data.get("found_location"),
             "found_at": data.get("found_at") or datetime.now(timezone.utc).isoformat(),
             "found_image": data.get("found_image"),
-            "delivery_method": data.get("delivery_method"),
-            "delivery_status": "WAITING_FOR_DELIVERY" if data.get("delivery_method") == "LOST_FOUND_CENTER" else "CURRENTLY_WITH_FINDER",
+            "delivery_method": delivery_method,
+            "delivery_status": delivery_status,
             "received_by_admin": None,
             "received_at": None,
             "storage_location": None,
