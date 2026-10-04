@@ -46,12 +46,28 @@ class AuthService:
         if db.users.find_one({"email": email}):
             return {"error": "An account with this campus email already exists.", "status_code": 409}
 
-        # Argon2 hash password
+        # Check for a pending OTP verification (previous attempt didn't complete)
+        if db.otp_verifications.find_one({"email": email}):
+            return {"error": "A verification OTP was already sent to this email. Please check your inbox or request a new OTP.", "status_code": 409}
+
+        # Generate OTP first
+        otp_code = generate_otp()
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+
+        # Attempt to send verification email; if it fails, abort registration
+        try:
+            send_verification_email(email, otp_code, data.get("name", ""))
+        except Exception as e:
+            current_app.logger.error(f"Failed to send verification email to {email}: {e}")
+            return {"error": "Unable to send verification email. Please try again later.", "status_code": 500}
+
+        # Argon2 hash password (after email succeeded)
         hashed = hash_password(password)
 
         student_id = (data.get("student_id") or "").strip()
         department = (data.get("department") or "").strip()
         phone = (data.get("phone") or "").strip()
+
 
         user_doc = {
             "name": (data.get("name") or "").strip(),
@@ -67,13 +83,11 @@ class AuthService:
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
+        # Insert user document *after* email was successfully sent and OTP stored
         res = db.users.insert_one(user_doc)
         user_id = str(res.inserted_id)
 
-        # Generate OTP
-        otp_code = generate_otp()
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
-
+        # Store OTP verification record (already generated above)
         db.otp_verifications.update_one(
             {"email": email},
             {
@@ -88,8 +102,6 @@ class AuthService:
             upsert=True,
         )
 
-        # Send Verification Email / Log
-        send_verification_email(email, otp_code, data["name"])
         record_audit_log("USER_REGISTER", user_id, email, "New campus user registration initiated")
 
         return {
