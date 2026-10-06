@@ -1,5 +1,166 @@
 # Smart Campus Lost & Found Portal
 
+## Project Overview
+The Smart Campus Lost & Found Portal is a full-stack web application designed to digitize and simplify the complete campus lost-and-found process. The system provides a centralized platform where students can report lost items, discover reported items, submit found-item reports, search using images, receive notifications, and request ownership of recovered items.
+
+The main goal of the project is to solve the problems of scattered WhatsApp messages, notice boards, manual records, and difficulty in verifying the rightful owner of a found item. The system combines secure authentication, cloud-based image storage, AI-assisted matching, campus-wide notifications, and administrator verification to create a structured recovery process.
+
+---
+
+### What I Actually Built — Step-by-Step
+**Step 1: User Authentication**
+- Created secure student registration and login
+- Added email verification
+- Implemented JWT-based authentication
+- Used secure password hashing
+- Added role‑based access for students and administrators
+- Added protected admin routes
+
+**Result:** Only authenticated users can access protected features.
+
+**Step 2: Report Lost Item**
+Students can report a lost item by providing:
+- Item name
+- Category
+- Date lost
+- Lost location
+- Brand/make
+- Color
+- Description
+- Item image
+
+The system generates a unique reference ID such as `LOST-2026-10234`. Images are uploaded to cloud storage and the image URL is stored with the item record.
+
+**Step 3: Discover Lost Items**
+Instead of requiring students to fill out a form just to search, the system displays actual reported items from the database. Students can:
+- Search items
+- Filter by category
+- Filter by location
+- Filter by date/status
+- View item details
+- Browse available lost and found records
+
+**Step 4: Report a Found Item**
+When a student finds an item, they can select the relevant lost‑item report and click “I FOUND THIS ITEM”. A short form allows them to provide:
+- Found location
+- Current item location
+- Found image
+- Description
+- Delivery method
+
+The system generates a reference ID such as `FOUND-2026-27329`.
+
+**Step 5: AI‑Assisted Matching**
+The system compares lost and found reports using multiple attributes:
+- Category, Color, Brand, Location, Date, Description, Image similarity
+
+Text similarity and image matching are used to identify possible matches between lost and found items. The AI does not make the final ownership decision; it assists the administrator by identifying potentially related records.
+
+**Step 6: Find by Photo**
+Students can upload a photograph of an item to search for visually similar items.
+```
+Upload Photo → Image Processing → Compare With Stored Images → Similarity Analysis → Matching Items
+```
+This makes it easier to identify an item even when the student does not know its exact name or description.
+
+**Step 7: Ownership Request**
+If a student believes that a found item belongs to them, they can submit an Ownership Request, providing:
+- Reason for ownership
+- Additional information
+- Optional supporting image/evidence
+
+The request is then sent to the administrator for verification.
+
+**Step 8: Admin Verification & Resolution**
+The administrator can review:
+- Lost‑item details
+- Found‑item details
+- Student information
+- Supporting evidence
+- Uploaded images
+- AI matching information
+
+The administrator can:
+- Approve
+- Reject
+- Request more information
+- Resolve the case
+
+The final ownership decision is always made by the administrator.
+
+**Step 9: Physical Storage & Handover**
+After verification, the administrator can track the physical item using:
+- Building, Room, Storage ID, Locker, Shelf
+
+Once the owner is verified, the item becomes Ready for Collection. The student visits the Lost & Found Center and provides the relevant reference ID. The administrator verifies the student and confirms the handover. The item then moves through the lifecycle:
+```
+WAITING FOR DELIVERY → RECEIVED → STORED → READY FOR COLLECTION → RETURNED → CLOSED
+```
+
+**Step 10: Notifications**
+The system provides two types of notifications:
+- **Campus‑wide notifications:** When a new lost item is reported, active students can receive an alert, increasing the chance that someone recognizes or finds the item.
+- **Personal notifications:** Updates on found reports, possible matches, ownership request status, approval/rejection, item ready for collection, resolution, and handover.
+
+---
+
+## What The Project Provides
+- **Centralized Lost & Found Management:** All lost, found, ownership, and inventory information is maintained in one system.
+- **AI‑Assisted Recovery:** AI helps identify relationships between lost and found items using text and image similarity.
+- **Faster Item Discovery:** Students can search through actual reported items instead of manual communication.
+- **Photo‑Based Search:** Users can search for potentially matching items using an uploaded image.
+- **Secure Ownership Verification:** Ownership requests are reviewed by an administrator before an item is returned.
+- **Campus‑Wide Awareness:** New lost‑item reports can be communicated to the wider student community through notifications.
+- **Complete Tracking:** Every item can be tracked through its lifecycle: Lost → Found → Matched → Verified → Collected → Closed
+
+---
+
+## Technology Stack
+| Technology | Purpose |
+|------------|---------|
+| **React.js** | Frontend development |
+| **Vite** | Frontend build tool |
+| **Tailwind CSS** | UI styling |
+| **Python** | Backend and AI processing |
+| **Flask** | REST API development |
+| **MongoDB Atlas** | Database |
+| **PyMongo** | MongoDB integration |
+| **JWT** | Authentication |
+| **Argon2 / bcrypt** | Password security |
+| **Cloudinary** | Image storage |
+| **Axios** | API communication |
+| **scikit‑learn** | Machine learning / text similarity |
+| **sentence‑transformers** | Semantic text matching |
+| **NumPy** | Numerical processing |
+| **Pillow / OpenCV** | Image processing |
+
+---
+
+## Why This Project Matters
+**For Students**
+- Makes reporting lost items easier
+- Helps students discover recovered items
+- Provides photo‑based searching
+- Gives clear status updates
+- Improves chances of recovering belongings
+
+**For Campus Administration**
+- Reduces manual record keeping
+- Centralizes lost‑and‑found inventory
+- Makes ownership verification easier
+- Provides organized storage tracking
+- Creates a transparent handover process
+
+**For the Campus Community**
+- Improves communication about lost items
+- Allows students to help others recover belongings
+- Creates a structured and trustworthy recovery system
+
+---
+
+*Note: No admin IDs or passwords are included in this documentation.*
+
+
 ## Overview
 A full‑stack web application that digitizes the campus lost‑and‑found process. Students can report lost items, browse reported items, submit found‑item reports, search by photo, receive notifications, and request ownership. The system includes secure authentication, cloud image storage, AI‑assisted matching, and admin verification.
 
