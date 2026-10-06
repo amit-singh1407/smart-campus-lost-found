@@ -1,4 +1,78 @@
-# 🎓 Smart Campus Lost & Found System
+# Smart Campus Lost & Found Portal
+
+## Project Overview
+The Smart Campus Lost & Found Portal is a full‑stack web application designed to digitize and simplify the complete campus lost‑and‑found process. It provides a centralized platform where students can report lost items, discover reported items, submit found‑item reports, search using images, receive notifications, and request ownership of recovered items.
+
+The main goal of the project is to solve the problems of scattered WhatsApp messages, notice boards, manual records, and difficulty in verifying the rightful owner of a found item. The system combines secure authentication, cloud‑based image storage, AI‑assisted matching, campus‑wide notifications, and administrator verification to create a structured recovery process.
+
+---
+
+### Features
+- **User Authentication**: Secure registration, email verification, JWT‑based auth, role‑based access (students & administrators).
+- **Report Lost Item**: Capture detailed info (name, category, date, location, brand, color, description, image). Generates a unique reference ID (e.g., `LOST-2026‑10234`). Images stored in Cloudinary.
+- **Discover Lost Items**: Browse, filter, and search actual reported items.
+- **Report Found Item**: Link to a lost‑item report, provide details, generate `FOUND‑2026‑27329` ID.
+- **AI‑Assisted Matching**: Text similarity (sentence‑transformers) and image similarity (OpenCV/Pillow) to suggest possible matches.
+- **Find by Photo**: Upload a photo to find visually similar items.
+- **Ownership Request**: Students can request ownership with supporting evidence; admin reviews.
+- **Admin Verification & Resolution**: Admin can approve/reject requests, request more info, and manage item lifecycle.
+- **Physical Storage & Handover**: Track storage location (building, room, locker, etc.) and status flow from `WAITING FOR DELIVERY` → `READY FOR COLLECTION` → `CLOSED`.
+- **Notifications**: Campus‑wide alerts for new lost items and personal notifications for status updates.
+
+---
+
+### Technology Stack
+| Technology | Purpose |
+|------------|---------|
+| **React.js** | Frontend development |
+| **Vite** | Frontend build tool |
+| **Tailwind CSS** | UI styling |
+| **Python** | Backend and AI processing |
+| **Flask** | REST API development |
+| **MongoDB Atlas** | Database |
+| **PyMongo** | MongoDB integration |
+| **JWT** | Authentication |
+| **Argon2 / bcrypt** | Password security |
+| **Cloudinary** | Image storage |
+| **Axios** | API communication |
+| **scikit‑learn** | Machine learning / text similarity |
+| **sentence‑transformers** | Semantic text matching |
+| **NumPy** | Numerical processing |
+| **Pillow / OpenCV** | Image processing |
+
+---
+
+### Why This Project Matters
+**For Students**
+- Simplifies reporting lost items.
+- Improves discovery of recovered items.
+- Enables photo‑based searching.
+- Provides clear status updates.
+- Increases chance of recovering belongings.
+
+**For Campus Administration**
+- Reduces manual record keeping.
+- Centralizes lost‑and‑found inventory.
+- Streamlines ownership verification.
+- Organizes storage tracking and handover.
+- Enhances transparency.
+
+**For the Campus Community**
+- Improves communication about lost items.
+- Encourages community participation in recovery.
+- Establishes a trustworthy system.
+
+---
+
+### Project Limitations
+- AI matching suggests possible matches; final ownership is verified by an administrator.
+- Image similarity may be affected by lighting, angle, and image quality.
+- Notification effectiveness depends on student engagement.
+- System relies on accurate user‑provided item information.
+
+---
+
+*Note: No admin IDs or passwords are included in this documentation.*
 
 An intelligent, secure, and full-stack recovery platform connecting university students, faculty, and campus security staff to report, discover, match, and claim lost belongings — with verified identities, smart AI matching, and a conversational recovery assistant.
 
