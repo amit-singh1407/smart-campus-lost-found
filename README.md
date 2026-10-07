@@ -694,20 +694,6 @@ npm run dev
 
 > ✅ Frontend runs on `http://localhost:5173`
 
----
-
-## 🔑 Default Administrative Credentials
-
-| Field | Value |
-|-------|-------|
-| **Admin Email** | `admin@campus.edu` |
-| **Admin Password** | `AdminPassword123!` |
-| **Admin Portal URL** | `http://localhost:5173/admin/login` |
-
-> ⚠️ Change the admin password immediately after first login in any production deployment.
-
----
-
 ## 🧪 Running Automated Tests
 
 Three test suites are included in the `backend/` directory:
