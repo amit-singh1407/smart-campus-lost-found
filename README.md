@@ -618,7 +618,7 @@ Create a `.env` file in the `backend/` directory. Use `.env.example` as a templa
 ```env
 # MongoDB
 MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/
-MONGODB_DATABASE=smart_campus_lost_found
+MONGODB_DATABASE=
 
 # JWT
 JWT_SECRET=<long-random-secret>
@@ -636,19 +636,19 @@ EMAIL_USERNAME=<your-gmail>
 EMAIL_PASSWORD=<app-password>
 
 # App
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=
 ALLOWED_EMAIL_DOMAIN=campus.edu
 FLASK_ENV=development
 DEBUG=True
-MAX_CONTENT_LENGTH=16777216
-RATE_LIMIT_DEFAULT=200/day
+MAX_CONTENT_LENGTH=
+RATE_LIMIT_DEFAULT=
 ```
 
 > **Note:** In development, if SMTP credentials are missing, OTP codes are printed to the Flask console instead of being emailed.
 
 Frontend — create `frontend/.env`:
 ```env
-VITE_API_BASE_URL=http://localhost:5000/api/v1
+VITE_API_BASE_URL=
 ```
 
 ---
