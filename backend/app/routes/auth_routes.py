@@ -110,6 +110,8 @@ def forgot_password():
         data = request.get_json() or {}
         validated = ForgotPasswordSchema(**data)
         result = AuthService.forgot_password_otp(validated.email)
+        if "error" in result:
+            return jsonify({"message": result["error"]}), result["status_code"]
         return jsonify(result), result["status_code"]
     except ValidationError as err:
         return jsonify({"message": "Invalid input", "errors": err.errors()}), 422

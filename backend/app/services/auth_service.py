@@ -1,12 +1,11 @@
 import re
-import random
-import string
+import secrets
 from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 from flask import current_app
 from flask_jwt_extended import create_access_token, create_refresh_token
 
-from app.utils.security import hash_password, verify_password
+from app.utils.security import hash_password, verify_password, hash_otp, verify_otp
 from app.utils.email_sender import send_verification_email
 from app.services.audit_service import record_audit_log
 
@@ -25,9 +24,50 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
     return True, ""
 
 
+OTP_TTL_MINUTES = 15
+OTP_MAX_ATTEMPTS = 5
+OTP_RESEND_COOLDOWN_SECONDS = 60
+
+EMAIL_SEND_FAILED = {
+    "error": "Unable to send the verification email right now. Please try again in a few minutes.",
+    "status_code": 502,
+}
+
+
 def generate_otp(length: int = 6) -> str:
-    """Generate a random numeric OTP string."""
-    return "".join(random.choices(string.digits, k=length))
+    """Generate a cryptographically secure numeric OTP string."""
+    return "".join(secrets.choice("0123456789") for _ in range(length))
+
+
+def _otp_expired(record: dict) -> bool:
+    return datetime.now(timezone.utc) > datetime.fromisoformat(record["expires_at"])
+
+
+def _cooldown_remaining(record: dict | None) -> int:
+    """Seconds left before another OTP may be sent for this email (0 if allowed)."""
+    if not record or not record.get("created_at"):
+        return 0
+    elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(record["created_at"])).total_seconds()
+    return max(0, int(OTP_RESEND_COOLDOWN_SECONDS - elapsed))
+
+
+def _store_otp(db, email: str, otp_code: str, for_reset: bool) -> None:
+    """Persist only the OTP hash, replacing any previous code for this email."""
+    now = datetime.now(timezone.utc)
+    db.otp_verifications.update_one(
+        {"email": email},
+        {
+            "$set": {
+                "email": email,
+                "otp_hash": hash_otp(otp_code),   # HMAC-SHA256 digest only
+                "expires_at": (now + timedelta(minutes=OTP_TTL_MINUTES)).isoformat(),
+                "attempts": 0,
+                "for_reset": for_reset,
+                "created_at": now.isoformat(),
+            }
+        },
+        upsert=True,
+    )
 
 
 class AuthService:
@@ -46,20 +86,11 @@ class AuthService:
         if db.users.find_one({"email": email}):
             return {"error": "An account with this campus email already exists.", "status_code": 409}
 
-        # Check for a pending OTP verification (previous attempt didn't complete)
-        if db.otp_verifications.find_one({"email": email}):
-            return {"error": "A verification OTP was already sent to this email. Please check your inbox or request a new OTP.", "status_code": 409}
-
-        # Generate OTP first
+        # Send the OTP first; if the email is not accepted, abort before creating the account
+        # (a leftover OTP record with no user is simply overwritten below)
         otp_code = generate_otp()
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
-
-        # Attempt to send verification email; if it fails, abort registration
-        try:
-            send_verification_email(email, otp_code, data.get("name", ""))
-        except Exception as e:
-            current_app.logger.error(f"Failed to send verification email to {email}: {e}")
-            return {"error": "Unable to send verification email. Please try again later.", "status_code": 500}
+        if not send_verification_email(email, otp_code, data.get("name", "")):
+            return EMAIL_SEND_FAILED
 
         # Argon2 hash password (after email succeeded)
         hashed = hash_password(password)
@@ -83,24 +114,12 @@ class AuthService:
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        # Insert user document *after* email was successfully sent and OTP stored
+        # Insert user document *after* the email was successfully sent
         res = db.users.insert_one(user_doc)
         user_id = str(res.inserted_id)
 
-        # Store OTP verification record (already generated above)
-        db.otp_verifications.update_one(
-            {"email": email},
-            {
-                "$set": {
-                    "email": email,
-                    "otp": otp_code,
-                    "expires_at": expires_at.isoformat(),
-                    "attempts": 0,
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                }
-            },
-            upsert=True,
-        )
+        # Store OTP verification record — only the HASH is persisted, never plaintext
+        _store_otp(db, email, otp_code, for_reset=False)
 
         record_audit_log("USER_REGISTER", user_id, email, "New campus user registration initiated")
 
@@ -119,24 +138,23 @@ class AuthService:
         otp = otp.strip()
 
         record = db.otp_verifications.find_one({"email": email})
-        if not record:
+        # A password-reset code must not be usable to verify an email
+        if not record or record.get("for_reset"):
             return {"error": "No pending verification found for this email.", "status_code": 400}
 
-        # Check expiration
-        exp_dt = datetime.fromisoformat(record["expires_at"])
-        if datetime.now(timezone.utc) > exp_dt:
+        if _otp_expired(record):
             return {"error": "Verification OTP has expired. Please request a new code.", "status_code": 400}
 
-        # Check OTP attempt limit (max 5 attempts)
+        # Check OTP attempt limit
         current_attempts = record.get("attempts", 0)
-        if current_attempts >= 5:
+        if current_attempts >= OTP_MAX_ATTEMPTS:
             db.otp_verifications.delete_one({"email": email})
             return {"error": "Maximum verification attempts exceeded. Please request a new OTP code.", "status_code": 429}
 
-        if record.get("otp") != otp:
+        if not verify_otp(record.get("otp_hash", ""), otp):
             new_attempts = current_attempts + 1
             db.otp_verifications.update_one({"email": email}, {"$inc": {"attempts": 1}})
-            remaining = max(0, 5 - new_attempts)
+            remaining = max(0, OTP_MAX_ATTEMPTS - new_attempts)
             return {"error": f"Invalid verification code. {remaining} attempt(s) remaining.", "status_code": 400}
 
         # Successful verification -> activate account
@@ -164,24 +182,20 @@ class AuthService:
         if not user:
             return {"error": "No registered account found with this email.", "status_code": 404}
 
+        if user.get("email_verified"):
+            return {"error": "This email is already verified. Please sign in.", "status_code": 400}
+
+        # Throttle resends so the free Resend quota can't be drained by repeated clicks
+        wait = _cooldown_remaining(db.otp_verifications.find_one({"email": email}))
+        if wait:
+            return {"error": f"Please wait {wait} seconds before requesting a new code.", "status_code": 429}
+
+        # Only replace the stored code once the new one was actually emailed
         otp_code = generate_otp()
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+        if not send_verification_email(email, otp_code, user.get("name", "")):
+            return EMAIL_SEND_FAILED
 
-        db.otp_verifications.update_one(
-            {"email": email},
-            {
-                "$set": {
-                    "email": email,
-                    "otp": otp_code,
-                    "expires_at": expires_at.isoformat(),
-                    "attempts": 0,
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                }
-            },
-            upsert=True,
-        )
-
-        send_verification_email(email, otp_code, user.get("name", ""))
+        _store_otp(db, email, otp_code, for_reset=False)
         return {"message": "A fresh verification OTP has been sent.", "status_code": 200}
 
     @staticmethod
@@ -199,6 +213,10 @@ class AuthService:
 
         # Check Email Verification
         if not user.get("email_verified", False):
+            # If their earlier code is gone or expired, email a fresh one so the verify page is usable
+            record = db.otp_verifications.find_one({"email": email})
+            if not record or record.get("for_reset") or _otp_expired(record):
+                AuthService.resend_otp(email)
             return {
                 "error": "Your campus email has not been verified yet. Please enter the OTP sent to your email.",
                 "email_unverified": True,
@@ -268,31 +286,36 @@ class AuthService:
         if not user:
             return {"message": "If an account exists, a reset code was sent.", "status_code": 200}
 
+        wait = _cooldown_remaining(db.otp_verifications.find_one({"email": email}))
+        if wait:
+            return {"error": f"Please wait {wait} seconds before requesting a new code.", "status_code": 429}
+
         otp_code = generate_otp()
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
-        db.otp_verifications.update_one(
-            {"email": email},
-            {
-                "$set": {
-                    "email": email,
-                    "otp": otp_code,
-                    "expires_at": expires_at.isoformat(),
-                    "for_reset": True,
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                }
-            },
-            upsert=True,
-        )
-        send_verification_email(email, otp_code, user.get("name", ""))
+        if not send_verification_email(email, otp_code, user.get("name", ""), purpose="reset"):
+            return EMAIL_SEND_FAILED
+
+        _store_otp(db, email, otp_code, for_reset=True)
         return {"message": "Password reset OTP sent to your campus email.", "status_code": 200}
 
     @staticmethod
     def reset_password_with_otp(email: str, otp: str, new_password: str):
         db = current_app.db
         email = email.strip().lower()
-        record = db.otp_verifications.find_one({"email": email, "otp": otp.strip()})
-        if not record:
-            return {"error": "Invalid or expired reset code.", "status_code": 400}
+        # Fetch the record by email only, then verify OTP hash — never query by raw OTP
+        record = db.otp_verifications.find_one({"email": email})
+        # Only a code issued by forgot-password may reset a password
+        if not record or not record.get("for_reset") or _otp_expired(record):
+            return {"error": "Invalid or expired reset code. Please request a new one.", "status_code": 400}
+
+        current_attempts = record.get("attempts", 0)
+        if current_attempts >= OTP_MAX_ATTEMPTS:
+            db.otp_verifications.delete_one({"email": email})
+            return {"error": "Maximum attempts exceeded. Please request a new reset code.", "status_code": 429}
+
+        if not verify_otp(record.get("otp_hash", ""), otp.strip()):
+            db.otp_verifications.update_one({"email": email}, {"$inc": {"attempts": 1}})
+            remaining = max(0, OTP_MAX_ATTEMPTS - current_attempts - 1)
+            return {"error": f"Invalid reset code. {remaining} attempt(s) remaining.", "status_code": 400}
 
         hashed = hash_password(new_password)
         db.users.update_one(
