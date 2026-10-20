@@ -26,7 +26,6 @@ __pycache__/
 .pytest_cache/
 .env
 .env.*
-!.env.example
 
 # Local image files used for manual testing
 test.jpg

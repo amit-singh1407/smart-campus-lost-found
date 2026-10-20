@@ -2,15 +2,15 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
 
 
 class Config:
     """Central Flask and database settings."""
 
     SECRET_KEY = os.getenv("SECRET_KEY", "smart-campus-super-secret-key-2026")
-    MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
-    MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "smart_campus")
+    MONGODB_URI = os.getenv("MONGODB_URI", "").strip()
+    MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "").strip() or "smart_campus"
 
     JWT_SECRET_KEY = os.getenv("JWT_SECRET", "smart-campus-jwt-key-2026")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)

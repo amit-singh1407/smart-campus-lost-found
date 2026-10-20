@@ -16,7 +16,7 @@ def admin_login():
     try:
         data = request.get_json() or {}
         validated = UserLoginSchema(**data)
-        result = AuthService.authenticate_user(validated.email, validated.password, required_role="ADMIN")
+        result = AuthService.authenticate_admin(validated.email, validated.password)
         if "error" in result:
             return jsonify({"message": result["error"]}), result["status_code"]
         return jsonify(result), result["status_code"]

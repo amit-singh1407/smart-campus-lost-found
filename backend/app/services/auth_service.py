@@ -279,6 +279,60 @@ class AuthService:
         }
 
     @staticmethod
+    def authenticate_admin(email: str, password: str):
+        db = current_app.db
+        email = email.strip().lower()
+        admin = db.admin_credentials.find_one({"email": email})
+
+        if not admin or not verify_password(admin.get("password_hash", ""), password):
+            return {"error": "Invalid email or password.", "status_code": 401}
+
+        if not admin.get("is_active", admin.get("account_status") == "active"):
+            return {"error": "This administrator account is not active.", "status_code": 403}
+
+        role = admin.get("role")
+        if role not in ["ADMIN", "SUPER_ADMIN"]:
+            return {"error": "Access Denied: Administrative role clearance required.", "status_code": 403}
+
+        admin_id = str(admin["admin_id"])
+        token_claims = {
+            "id": admin_id,
+            "admin_id": admin_id,
+            "email": admin["email"],
+            "role": role,
+            "name": admin.get("name", ""),
+            "auth_source": "admin_credentials",
+        }
+        access_token = create_access_token(identity=admin_id, additional_claims=token_claims)
+        refresh_token = create_refresh_token(identity=admin_id, additional_claims=token_claims)
+
+        record_audit_log(
+            "ADMIN_LOGIN",
+            admin_id,
+            email,
+            f"Successful admin login for role: {role}",
+        )
+
+        return {
+            "message": "Login successful",
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "user": {
+                "id": admin_id,
+                "admin_id": admin_id,
+                "name": admin.get("name"),
+                "email": admin.get("email"),
+                "role": role,
+                "department": admin.get("department"),
+                "phone": admin.get("phone"),
+                "email_verified": True,
+                "account_status": admin.get("account_status"),
+                "is_active": admin.get("is_active", False),
+            },
+            "status_code": 200,
+        }
+
+    @staticmethod
     def forgot_password_otp(email: str):
         db = current_app.db
         email = email.strip().lower()

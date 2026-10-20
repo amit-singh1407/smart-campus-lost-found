@@ -11,7 +11,7 @@ import os
 from app.config import Config
 from app.middleware.security_headers import register_security_headers
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
 
 
 class CampusFlask(Flask):
@@ -86,6 +86,11 @@ def create_app() -> CampusFlask:
     # --------------------------------------------------
     # MongoDB Connection
     # --------------------------------------------------
+    if not app.config["MONGODB_URI"]:
+        raise RuntimeError(
+            "MONGODB_URI is required. Configure the MongoDB Atlas Python driver URI in backend/.env."
+        )
+
     client = MongoClient(
         app.config["MONGODB_URI"],
         serverSelectionTimeoutMS=5000,

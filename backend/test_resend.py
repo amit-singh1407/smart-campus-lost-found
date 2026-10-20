@@ -4,7 +4,7 @@ import sys
 
 # Load .env file
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 api_key    = os.getenv("RESEND_API_KEY", "")
 from_email = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
